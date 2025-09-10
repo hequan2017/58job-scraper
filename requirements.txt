@@ -1,0 +1,27 @@
+# 58同城职位信息爬虫依赖包
+
+# 核心爬虫库
+selenium>=4.15.0
+beautifulsoup4>=4.12.0
+requests>=2.31.0
+webdriver-manager>=4.0.0
+
+# 数据处理库
+pandas>=2.0.0
+numpy>=1.24.0
+openpyxl>=3.1.0
+
+# 其他工具库
+lxml>=4.9.0
+chardet>=5.2.0
+urllib3>=2.0.0
+certifi>=2023.7.22
+
+# 可选：进度条显示
+tqdm>=4.66.0
+
+# 可选：配置文件处理
+pyyaml>=6.0.0
+
+# 可选：日志处理
+coloredlogs>=15.0.0
