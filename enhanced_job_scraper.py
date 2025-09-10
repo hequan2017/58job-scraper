@@ -788,16 +788,29 @@ class Enhanced58JobScraper:
                 full_desc_text = desc_text  # 保存完整描述文本
                 
                 # 提取岗位职责内容
-                responsibility_pattern = r'岗位职责[：:]?\s*(.*?)(?=任职要求|福利待遇|联系方式|$)'
-                responsibility_match = re.search(responsibility_pattern, desc_text, re.DOTALL)
-                if responsibility_match:
-                    job_data["工作职责"] = responsibility_match.group(1).strip()[:500]
+                responsibility_patterns = [
+                    r'岗位职责[：:]?\s*(.*?)(?=任职要求|福利待遇|联系方式|$)',
+                    r'工作职责[：:]?\s*(.*?)(?=任职要求|福利待遇|联系方式|$)',
+                    r'工作内容[：:]?\s*(.*?)(?=任职要求|福利待遇|联系方式|$)'
+                ]
+                
+                for pattern in responsibility_patterns:
+                    responsibility_match = re.search(pattern, desc_text, re.DOTALL)
+                    if responsibility_match:
+                        job_data["工作职责"] = responsibility_match.group(1).strip()[:500]
+                        break
                 
                 # 提取任职要求内容
-                requirement_pattern = r'任职要求[：:]?\s*(.*?)(?=福利待遇|联系方式|工作地点|$)'
-                requirement_match = re.search(requirement_pattern, desc_text, re.DOTALL)
-                if requirement_match:
-                    job_data["任职要求"] = requirement_match.group(1).strip()[:500]
+                requirement_patterns = [
+                    r'任职要求[：:]?\s*(.*?)(?=福利待遇|联系方式|工作地点|$)',
+                    r'职位要求[：:]?\s*(.*?)(?=福利待遇|联系方式|工作地点|$)'
+                ]
+                
+                for pattern in requirement_patterns:
+                    requirement_match = re.search(pattern, desc_text, re.DOTALL)
+                    if requirement_match:
+                        job_data["任职要求"] = requirement_match.group(1).strip()[:500]
+                        break
             
             # 如果没有找到，使用页面文本进行提取
             if not job_data["工作职责"] or not job_data["任职要求"]:
@@ -806,6 +819,7 @@ class Enhanced58JobScraper:
                     responsibility_patterns = [
                         r'岗位职责[：:]?\s*(.*?)(?=任职要求|福利待遇|联系方式|工作地点|$)',
                         r'工作职责[：:]?\s*(.*?)(?=任职要求|福利待遇|联系方式|工作地点|$)',
+                        r'工作内容[：:]?\s*(.*?)(?=任职要求|福利待遇|联系方式|工作地点|$)',
                         r'职责[：:]?\s*(.*?)(?=任职要求|福利待遇|联系方式|工作地点|$)'
                     ]
                     
@@ -819,6 +833,7 @@ class Enhanced58JobScraper:
                 if not job_data["任职要求"]:
                     requirement_patterns = [
                         r'任职要求[：:]?\s*(.*?)(?=福利待遇|联系方式|工作地点|公司简介|$)',
+                        r'职位要求[：:]?\s*(.*?)(?=福利待遇|联系方式|工作地点|公司简介|$)',
                         r'岗位要求[：:]?\s*(.*?)(?=福利待遇|联系方式|工作地点|公司简介|$)',
                         r'要求[：:]?\s*(.*?)(?=福利待遇|联系方式|工作地点|公司简介|$)'
                     ]
@@ -1635,24 +1650,61 @@ class Enhanced58JobScraper:
                 job_data['所属区域'] = ''  # 如果包含无关词汇，清空该字段
                 print(f"× 所属区域包含无关内容已清空: {region}")
             else:
-                # 优先查找"XX省XX市XX区"格式，然后查找"XX市XX区"格式（非贪婪匹配）
-                region_match = re.search(r'([\u4e00-\u9fa5]{2,4}省[\u4e00-\u9fa5]{2,4}市[\u4e00-\u9fa5]{2,4}区)', region)
-                if not region_match:
-                    region_match = re.search(r'([\u4e00-\u9fa5]{2,4}市[\u4e00-\u9fa5]{2,4}区)', region)
-                if region_match:
-                    clean_region = region_match.group(1)
-                    # 确保长度合理
-                    if len(clean_region) <= 10:
-                        if clean_region != job_data['所属区域']:
-                            print(f"✓ 所属区域已清理: {job_data['所属区域']} -> {clean_region}")
-                        job_data['所属区域'] = clean_region
+                # 首先尝试修复"北京海淀区"这种缺少"市"字的格式
+                # 匹配"XX省XX区"或"XX市XX区"或"XXXX区"格式，并自动补充"市"字
+                city_fix_match = re.search(r'([\u4e00-\u9fa5]{2,4})(省)?([\u4e00-\u9fa5]{2,4})(市)?([\u4e00-\u9fa5]{2,4}区)', region)
+                if city_fix_match:
+                    province = city_fix_match.group(1)
+                    has_province = city_fix_match.group(2) is not None
+                    city = city_fix_match.group(3)
+                    has_city_suffix = city_fix_match.group(4) is not None
+                    district = city_fix_match.group(5)
+                    
+                    # 构建标准格式
+                    if has_province and not has_city_suffix:
+                        # "XX省XX区" -> "XX省XX市XX区"
+                        fixed_region = f"{province}省{city}市{district}"
+                        print(f"✓ 所属区域已自动修复: {region} -> {fixed_region}")
+                        job_data['所属区域'] = fixed_region
+                    elif not has_province and not has_city_suffix:
+                        # "XXXX区" -> "XX市XX区" (假设前两个字符是城市名)
+                        if len(city) >= 2:
+                            fixed_region = f"{city}市{district}"
+                            print(f"✓ 所属区域已自动修复: {region} -> {fixed_region}")
+                            job_data['所属区域'] = fixed_region
+                        else:
+                            job_data['所属区域'] = region  # 保持原样
                     else:
-                        job_data['所属区域'] = ''
-                        print(f"× 所属区域长度异常已清空: {clean_region}")
+                        job_data['所属区域'] = region  # 已经是标准格式
                 else:
-                    # 如果没有匹配到标准格式，清空该字段
-                    job_data['所属区域'] = ''
-                    print(f"× 所属区域格式不标准已清空: {region}")
+                    # 如果修复失败，尝试原有的正则匹配
+                    # 优先查找"XX省XX市XX区"格式，然后查找"XX市XX区"格式（非贪婪匹配）
+                    region_match = re.search(r'([\u4e00-\u9fa5]{2,4}省[\u4e00-\u9fa5]{2,4}市[\u4e00-\u9fa5]{2,4}区)', region)
+                    if not region_match:
+                        region_match = re.search(r'([\u4e00-\u9fa5]{2,4}市[\u4e00-\u9fa5]{2,4}区)', region)
+                    if region_match:
+                        clean_region = region_match.group(1)
+                        # 确保长度合理
+                        if len(clean_region) <= 10:
+                            if clean_region != job_data['所属区域']:
+                                print(f"✓ 所属区域已清理: {job_data['所属区域']} -> {clean_region}")
+                            job_data['所属区域'] = clean_region
+                        else:
+                            job_data['所属区域'] = ''
+                            print(f"× 所属区域长度异常已清空: {clean_region}")
+                    else:
+                        # 如果没有匹配到标准格式，清空该字段
+                        job_data['所属区域'] = ''
+                        print(f"× 所属区域格式不标准已清空: {region}")
+                
+                # 最终验证修复后的格式是否符合标准
+                final_region = job_data.get('所属区域', '')
+                if final_region:
+                    # 验证最终格式是否为"XX省XX市XX区"或"XX市XX区"
+                    if not (re.match(r'^[\u4e00-\u9fa5]{2,4}省[\u4e00-\u9fa5]{2,4}市[\u4e00-\u9fa5]{2,4}区$', final_region) or 
+                           re.match(r'^[\u4e00-\u9fa5]{2,4}市[\u4e00-\u9fa5]{2,4}区$', final_region)):
+                        job_data['所属区域'] = ''
+                        print(f"× 所属区域最终格式验证失败已清空: {final_region}")
 
         # 检查所属区域是否为空，如果为空则不保存
         if not job_data.get('所属区域') or job_data.get('所属区域').strip() == '':

@@ -1,0 +1,7 @@
+2025-09-10 14:58:03,117 - INFO - 文件 58同城多城市职位详细信息.xlsx 不存在，将在保存数据时创建
+2025-09-10 14:58:03,117 - INFO - 
+开始抓取北京的职位信息（前5页，当前页所有职位）...
+2025-09-10 14:58:03,117 - INFO - 
+=== 开始生成 5 页的URL列表 ===
+2025-09-10 14:58:03,117 - INFO - 第 1 页URL: https://bj.58.com/hulianwangtx/
+2025-09-10 14:58:05,375 - WARNING - Retrying (Retry(total=2, connect=None, read=None, redirect=None, status=None)) after connection broken by 'ConnectionResetError(10054, '远程主机强迫关闭了一个现有的连接。', None, 10054, None)': /session/45644bf4393f12c0b82177bca7cbce3e
