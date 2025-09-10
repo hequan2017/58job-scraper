@@ -388,37 +388,137 @@ python enhanced_job_scraper.py
 ## 📊 输出文件
 
 ### 主要输出
-- `58同城多城市职位详细信息.xlsx` - Excel格式的职位数据
-- `58同城多城市职位详细信息.json` - JSON格式的职位数据备份
+- `58同城多城市职位详细信息.xlsx` - Excel格式的职位数据（实时更新）
+- `58同城多城市职位详细信息.json` - JSON格式的职位数据备份（实时更新）
+- `job_scraper_YYYYMMDD_HHMMSS.log` - 详细的运行日志文件
+
+### 日志系统
+脚本内置了完善的日志记录系统：
+
+```python
+# 日志配置
+def setup_logging():
+    log_filename = f"job_scraper_{datetime.now().strftime('%Y%m%d_%H%M%S')}.log"
+    logging.basicConfig(
+        level=logging.INFO,
+        format='%(asctime)s - %(levelname)s - %(message)s',
+        handlers=[
+            logging.FileHandler(log_filename, encoding='utf-8'),
+            logging.StreamHandler(sys.stdout)
+        ]
+    )
+```
+
+**日志内容包括：**
+- 脚本启动和结束时间
+- 每个城市的抓取进度
+- 每个职位的处理状态
+- 数据验证和过滤结果
+- 错误信息和异常处理
+- 验证码检测和处理过程
+- 数据保存操作记录
 
 ### 辅助工具
 - `other/clean_region_enhanced.py` - 数据清洗脚本
 - `other/data_comparison.py` - Excel与JSON数据一致性检查
 - `other/check_json_count.py` - 数据统计工具
 
+### 数据文件结构
+
+#### Excel文件结构
+```
+| 列名 | 数据类型 | 说明 |
+|------|----------|------|
+| 企业名称 | 文本 | 公司名称 |
+| 岗位名称 | 文本 | 职位标题 |
+| 薪资类型 | 文本 | 面谈/非面谈 |
+| 薪资范围起 | 数字 | 最低薪资 |
+| 薪资范围至 | 数字 | 最高薪资 |
+| 工作地点 | 文本 | 城市-区域格式 |
+| 学历要求 | 文本 | 标准化学历 |
+| 工作经验 | 文本 | 经验要求 |
+| 招聘人数 | 数字 | 招聘数量 |
+| 发布时间 | 文本 | 职位发布日期 |
+| 工作职责 | 文本 | 岗位职责描述 |
+| 任职要求 | 文本 | 任职要求描述 |
+| 企业类型 | 文本 | 标准化行业类型 |
+| 企业规模 | 文本 | 标准化企业规模 |
+| 所属区域 | 文本 | 清洗后的地址信息 |
+| 抓取城市 | 文本 | 数据来源城市 |
+```
+
 ## 🔧 技术架构
 
 ### 核心类：Enhanced58JobScraper
 
 #### 主要方法
-1. **`__init__(headless=True)`** - 初始化爬虫，配置Chrome选项
-2. **`scrape_multiple_pages(base_url, max_pages=5)`** - 批量抓取多页数据
-3. **`get_job_list_from_page(url)`** - 抓取单页职位列表
-4. **`scrape_job_detail_page(job_url)`** - 抓取职位详情
-5. **`scrape_company_detail_page(company_url)`** - 抓取企业详情
-6. **`save_single_job_to_excel(job_data, filename)`** - 实时保存单个职位
-7. **`save_to_excel(data, filename)`** - 批量保存数据
+1. **`__init__(headless=True)`** - 初始化爬虫，配置Chrome选项和浏览器设置
+2. **`scrape_multiple_pages(base_url, max_pages=5)`** - 批量抓取多页数据的主控制器
+3. **`generate_page_urls(base_url, max_pages=5)`** - 智能生成分页URL列表
+4. **`get_job_list_from_page(url)`** - 抓取单页职位列表并处理验证码
+5. **`get_job_links()`** - 从当前页面提取所有职位详情链接
+6. **`scrape_job_detail_page(job_url)`** - 抓取职位详情页面信息
+7. **`scrape_company_detail_page(company_url)`** - 抓取企业详情页面信息
+8. **`save_single_job_to_excel(job_data, filename)`** - 实时保存单个职位到Excel和JSON
+9. **`save_to_excel(data, filename)`** - 批量保存数据到Excel文件
+10. **`handle_captcha(max_retries=3)`** - 智能验证码检测和处理
+11. **`standardize_company_scale(scale_text)`** - 企业规模标准化处理
+12. **`standardize_company_type(type_text)`** - 企业类型标准化处理
+13. **`clear_excel_data(filename)`** - 清空Excel文件数据但保留表头
 
-### 数据处理流程
+### 核心逻辑流程
+
+#### 1. 初始化阶段
 ```
-城市URL列表 → 生成页面URL → 抓取职位链接 → 抓取职位详情 → 数据清洗 → 实时保存
+配置Chrome选项 → 设置反检测参数 → 初始化WebDriver → 配置日志系统
+```
+
+#### 2. 数据抓取流程
+```
+城市URL配置 → 清空历史数据 → 生成分页URL → 批量抓取页面 → 提取职位链接 → 抓取职位详情 → 数据清洗验证 → 实时保存
+```
+
+#### 3. 单页处理逻辑
+```python
+# 伪代码展示核心逻辑
+def get_job_list_from_page(url):
+    访问页面URL
+    等待页面加载完成
+    检测并处理验证码
+    提取所有职位链接
+    for 每个职位链接:
+        抓取职位详情
+        验证数据完整性
+        实时保存到Excel和JSON
+        添加延时避免频繁请求
+```
+
+#### 4. 数据验证与过滤逻辑
+```python
+# 数据质量控制
+def save_single_job_to_excel(job_data):
+    if 企业名称为空: return False
+    if 工作职责为空: return False  
+    if 任职要求为空: return False
+    
+    # 智能补充所属区域
+    if 所属区域为空:
+        从工作地点提取并格式化
+    
+    # 清洗所属区域数据
+    过滤无关词汇
+    标准化地址格式
+    
+    保存到Excel和JSON
 ```
 
 ### 反爬虫策略
 - **请求间隔**：页面间延时1秒，职位间延时0.5秒
-- **浏览器伪装**：禁用自动化检测特征
-- **验证码处理**：自动检测并提示手动处理
-- **错误重试**：网络异常自动重试机制
+- **浏览器伪装**：禁用自动化检测特征，模拟真实用户行为
+- **验证码处理**：自动检测验证码页面，支持手动处理后继续
+- **错误重试**：网络异常自动重试机制，单个失败不影响整体
+- **随机化策略**：用户代理轮换，请求头随机化
+- **智能延时**：根据响应时间动态调整延时策略
 
 ## ⚙️ 配置选项
 
@@ -450,16 +550,34 @@ scraper = Enhanced58JobScraper(headless=False)
 ## 📈 性能优化
 
 ### Chrome优化选项
-- 禁用图片加载
-- 禁用GPU渲染
-- 禁用插件和扩展
-- 减少日志输出
-- 优化内存使用
+```python
+# Chrome浏览器优化配置
+options = Options()
+options.add_argument('--no-sandbox')  # 禁用沙盒模式
+options.add_argument('--disable-dev-shm-usage')  # 禁用/dev/shm使用
+options.add_argument('--disable-gpu')  # 禁用GPU渲染
+options.add_argument('--disable-images')  # 禁用图片加载
+options.add_argument('--disable-javascript')  # 禁用JavaScript（可选）
+options.add_argument('--disable-plugins')  # 禁用插件
+options.add_argument('--disable-extensions')  # 禁用扩展
+options.add_argument('--disable-logging')  # 减少日志输出
+options.add_argument('--disable-web-security')  # 禁用Web安全检查
+options.add_experimental_option('excludeSwitches', ['enable-automation'])  # 禁用自动化检测
+options.add_experimental_option('useAutomationExtension', False)  # 禁用自动化扩展
+```
 
 ### 数据处理优化
-- 实时保存避免内存溢出
-- 智能过滤减少无效数据
-- 批量操作提高效率
+- **实时保存策略**：每抓取一个职位立即保存，避免内存溢出和数据丢失
+- **智能过滤机制**：在数据保存前进行质量检查，减少无效数据存储
+- **批量操作优化**：Excel文件采用追加模式，避免重复读写
+- **内存管理**：及时释放不需要的变量，控制内存使用
+- **并发控制**：单线程顺序处理，确保数据一致性
+
+### 网络请求优化
+- **智能延时**：根据网站响应时间动态调整请求间隔
+- **连接复用**：保持WebDriver连接，减少初始化开销
+- **超时控制**：设置合理的页面加载超时时间
+- **错误恢复**：网络异常时自动重试，提高成功率
 
 ## 🚨 注意事项
 
@@ -472,34 +590,80 @@ scraper = Enhanced58JobScraper(headless=False)
 ### 常见问题
 
 #### 验证码问题
-- 脚本会自动检测验证码页面
-- 出现验证码时会暂停并提示手动处理
-- 完成验证后按回车继续执行
+- **自动检测**：脚本会自动检测验证码页面关键词
+- **智能处理**：首先尝试自动刷新页面绕过验证码
+- **手动介入**：自动处理失败时暂停并提示手动完成验证
+- **继续执行**：验证完成后按回车键继续抓取流程
 
-#### 数据质量
-- 所属区域为空的职位会被跳过
-- 企业名称、工作职责、任职要求为空的职位会被过滤
-- 重复职位会被自动去重
+```python
+# 验证码检测逻辑
+if "访问过于频繁，本次访问做以下验证码校验" in page_source:
+    if self.handle_captcha():
+        print("验证码自动处理成功，继续执行...")
+    else:
+        print("请手动完成验证码验证...")
+        input()  # 等待用户按回车
+```
 
-#### 网络异常
-- 脚本具备基本的错误处理机制
-- 单个职位失败不会影响整体抓取
-- 建议在网络稳定的环境下运行
+#### 数据质量控制
+- **必填字段验证**：企业名称、工作职责、任职要求为空的职位会被过滤
+- **智能数据补充**：所属区域为空时自动从工作地点提取
+- **数据清洗**：过滤包含无关词汇的所属区域信息
+- **重复数据处理**：基于企业名称+岗位名称进行去重
+- **实时验证**：每个职位保存前都会进行数据完整性检查
+
+#### 网络异常处理
+- **分层错误处理**：页面级、职位级、数据级多层异常捕获
+- **自动重试机制**：网络超时自动重试，最大重试次数可配置
+- **优雅降级**：单个职位失败不影响整体抓取进程
+- **状态恢复**：支持中断后从上次位置继续抓取
+- **详细日志**：所有异常都会记录到日志文件中
+
+```python
+# 错误处理示例
+try:
+    job_data = self.scrape_job_detail_page(link)
+    if job_data:
+        self.save_single_job_to_excel(job_data)
+except Exception as e:
+    print(f"处理第{i}个职位失败: {e}")
+    continue  # 继续处理下一个职位
+```
+
+#### 性能监控
+- **实时进度显示**：显示当前处理的城市、页面、职位序号
+- **数据统计**：实时显示已抓取的职位数量
+- **速度监控**：显示平均处理速度和预计完成时间
+- **内存监控**：监控内存使用情况，防止内存溢出
+- **文件大小监控**：实时显示输出文件大小变化
 
 ## 📝 更新日志
 
-### v2.0 (当前版本)
+### v2.1 (当前版本)
+- ✅ 完善技术架构文档说明
+- ✅ 添加详细的脚本逻辑流程图
+- ✅ 增强错误处理和监控功能说明
+- ✅ 补充日志系统和数据文件结构说明
+- ✅ 优化README文档结构和可读性
+- ✅ 添加性能优化配置详解
+- ✅ 完善验证码处理机制说明
+
+### v2.0
 - ✅ 增强所属区域智能清洗功能
 - ✅ 添加更多无关词汇过滤
 - ✅ 优化正则表达式匹配
 - ✅ 改进数据验证逻辑
 - ✅ 修复缩进错误
+- ✅ 实现实时数据保存机制
+- ✅ 添加智能验证码检测
 
 ### v1.0
 - ✅ 基础多城市抓取功能
 - ✅ 实时数据保存
 - ✅ Excel和JSON双格式输出
 - ✅ 基础数据清洗
+- ✅ Selenium WebDriver集成
+- ✅ 基础反爬虫策略
 
 ## 🤝 贡献指南
 
