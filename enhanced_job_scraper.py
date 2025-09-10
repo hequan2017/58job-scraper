@@ -314,13 +314,18 @@ class Enhanced58JobScraper:
                 EC.presence_of_element_located((By.TAG_NAME, "body"))
             )
             
-            # 检测验证码并等待人工处理
+            # 检测验证码并尝试自动处理
             page_source = self.driver.page_source
             if "访问过于频繁，本次访问做以下验证码校验" in page_source or "验证码校验" in page_source:
-                print("\n检测到验证码页面，请手动完成验证码验证...")
-                print("验证完成后，请按回车键继续...")
-                input()  # 等待用户按回车
-                print("继续执行...")
+                print("\n检测到验证码页面...")
+                # 先尝试自动处理验证码
+                if self.handle_captcha():
+                    print("验证码自动处理成功，继续执行...")
+                else:
+                    print("自动处理失败，请手动完成验证码验证...")
+                    print("验证完成后，请按回车键继续...")
+                    input()  # 等待用户按回车
+                    print("继续执行...")
             
             # 获取所有职位链接
             job_links = self.get_job_links()
@@ -560,13 +565,18 @@ class Enhanced58JobScraper:
                 EC.presence_of_element_located((By.TAG_NAME, "body"))
             )
             
-            # 检测验证码并等待人工处理
+            # 检测验证码并尝试自动处理
             page_source = self.driver.page_source
             if "访问过于频繁，本次访问做以下验证码校验" in page_source or "验证码校验" in page_source:
-                print("\n检测到验证码页面，请手动完成验证码验证...")
-                print("验证完成后，请按回车键继续...")
-                input()  # 等待用户按回车
-                print("继续执行...")
+                print("\n检测到验证码页面...")
+                # 先尝试自动处理验证码
+                if self.handle_captcha():
+                    print("验证码自动处理成功，继续执行...")
+                else:
+                    print("自动处理失败，请手动完成验证码验证...")
+                    print("验证完成后，请按回车键继续...")
+                    input()  # 等待用户按回车
+                    print("继续执行...")
                 # 重新获取页面源码
                 page_source = self.driver.page_source
             
@@ -994,13 +1004,18 @@ class Enhanced58JobScraper:
                 EC.presence_of_element_located((By.TAG_NAME, "body"))
             )
             
-            # 检测验证码并等待人工处理
+            # 检测验证码并尝试自动处理
             page_source = self.driver.page_source
             if "访问过于频繁，本次访问做以下验证码校验" in page_source or "验证码校验" in page_source:
-                print("\n检测到验证码页面，请手动完成验证码验证...")
-                print("验证完成后，请按回车键继续...")
-                input()  # 等待用户按回车
-                print("继续执行...")
+                print("\n检测到验证码页面...")
+                # 先尝试自动处理验证码
+                if self.handle_captcha():
+                    print("验证码自动处理成功，继续执行...")
+                else:
+                    print("自动处理失败，请手动完成验证码验证...")
+                    print("验证完成后，请按回车键继续...")
+                    input()  # 等待用户按回车
+                    print("继续执行...")
                 # 重新获取页面源码
                 page_source = self.driver.page_source
             
