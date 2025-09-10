@@ -12,6 +12,44 @@ from selenium.webdriver.support import expected_conditions as EC
 from webdriver_manager.chrome import ChromeDriverManager
 from datetime import datetime
 import re
+import logging
+import os
+import sys
+
+# 配置日志
+def setup_logging():
+    # 确保log目录存在
+    if not os.path.exists('log'):
+        os.makedirs('log')
+    
+    # 生成时间戳文件名
+    timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
+    log_filename = f'log/{timestamp}.log'
+    
+    # 配置日志格式
+    logging.basicConfig(
+        level=logging.INFO,
+        format='%(asctime)s - %(levelname)s - %(message)s',
+        handlers=[
+            logging.FileHandler(log_filename, encoding='utf-8'),
+            logging.StreamHandler(sys.stdout)
+        ]
+    )
+    
+    return log_filename
+
+# 重写print函数，同时输出到控制台和日志
+def log_print(*args, **kwargs):
+    message = ' '.join(str(arg) for arg in args)
+    logging.info(message)
+
+# 设置日志
+log_filename = setup_logging()
+print(f"日志将保存到: {log_filename}")
+
+# 替换print函数
+original_print = print
+print = log_print
 
 class Enhanced58JobScraper:
     def __init__(self, headless=True):
@@ -1528,7 +1566,8 @@ class Enhanced58JobScraper:
                 
                 # 同时导出JSON文件
                 json_filename = filename.replace('.xlsx', '.json')
-                self.save_to_json(processed_data, json_filename)
+                with open(json_filename, 'w', encoding='utf-8') as f:
+                    json.dump(processed_data, f, ensure_ascii=False, indent=2)
                 print(f"数据已同时导出为JSON: {json_filename}")
                 
                 # 打印详细统计信息
@@ -1629,10 +1668,11 @@ class Enhanced58JobScraper:
                 combined_df = pd.concat([existing_df, new_df], ignore_index=True)
                 combined_df.to_excel(filename, index=False)
                 
-                # 同时更新JSON文件
+                # 同时写入JSON文件
                 json_filename = filename.replace('.xlsx', '.json')
                 json_data = combined_df.to_dict('records')
-                self.save_to_json(json_data, json_filename)
+                with open(json_filename, 'w', encoding='utf-8') as f:
+                    json.dump(json_data, f, ensure_ascii=False, indent=2)
             else:
                 # 文件不存在，创建新文件
                 df = pd.DataFrame([job_data])
@@ -1641,22 +1681,14 @@ class Enhanced58JobScraper:
                 # 同时创建JSON文件
                 json_filename = filename.replace('.xlsx', '.json')
                 json_data = df.to_dict('records')
-                self.save_to_json(json_data, json_filename)
+                with open(json_filename, 'w', encoding='utf-8') as f:
+                    json.dump(json_data, f, ensure_ascii=False, indent=2)
             
-            print(f"✓ 职位数据已实时保存: {job_data.get('岗位名称', 'N/A')} - {job_data.get('企业名称', 'N/A')}")
+            print(f"✓ 职位数据已实时保存到Excel和JSON: {job_data.get('岗位名称', 'N/A')} - {job_data.get('企业名称', 'N/A')}")
             return True
         return False
     
-    def save_to_json(self, data, filename="58同城职位详细信息.json"):
-        """保存数据到JSON文件"""
-        if data:
-            with open(filename, 'w', encoding='utf-8') as f:
-                json.dump(data, f, ensure_ascii=False, indent=2)
-            print(f"数据已保存到 {filename}")
-            return True
-        else:
-            print("没有数据可保存")
-            return False
+
     
     def print_detailed_results(self, data):
         """打印详细的抓取结果"""
@@ -1738,13 +1770,10 @@ def main():
         if all_data:
             print(f"\n所有城市总共成功抓取到 {len(all_data)} 个职位信息")
             
-            # 保存JSON备份文件
-            scraper.save_to_json(all_data, "58同城多城市职位详细信息.json")
-            
             # 打印详细结果
             scraper.print_detailed_results(all_data)
             
-            print("\n✓ 所有数据已通过实时保存功能写入Excel文件")
+            print("\n✓ 所有数据已通过实时保存功能写入Excel和JSON文件")
             
         else:
             print("所有城市都未抓取到任何职位数据")
