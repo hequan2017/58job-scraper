@@ -26,3 +26,13 @@
 2025-09-10 15:07:54,654 - INFO - 成功抓取第1个职位: 运维工程师
 2025-09-10 15:07:55,155 - INFO - 
 正在处理第2个职位
+2025-09-10 15:07:59,906 - INFO - 正在抓取企业详细信息: 北京嘉言文化发展有限公司
+2025-09-10 15:08:02,469 - INFO - ✓ 所属区域已从工作地点补充: 北京 - 朝阳 -> 北京朝阳区
+2025-09-10 15:08:02,469 - INFO - × 所属区域格式不标准已清空: 北京朝阳区
+2025-09-10 15:08:02,469 - INFO - × 跳过保存：所属区域为空的职位数据 - 产品经理 - 北京嘉言文化发展有限公司
+2025-09-10 15:08:02,469 - INFO - 成功抓取第2个职位: 产品经理
+2025-09-10 15:08:02,970 - INFO - 
+正在处理第3个职位
+2025-09-10 15:08:09,469 - WARNING - Retrying (Retry(total=2, connect=None, read=None, redirect=None, status=None)) after connection broken by 'NewConnectionError('<urllib3.connection.HTTPConnection object at 0x0000028B7A808190>: Failed to establish a new connection: [WinError 10061] 由于目标计算机积极拒绝，无法连接。')': /session/f1f18a80aa62aea5a59ab9150afa10c8
+2025-09-10 15:08:13,542 - WARNING - Retrying (Retry(total=1, connect=None, read=None, redirect=None, status=None)) after connection broken by 'NewConnectionError('<urllib3.connection.HTTPConnection object at 0x0000028B7A808550>: Failed to establish a new connection: [WinError 10061] 由于目标计算机积极拒绝，无法连接。')': /session/f1f18a80aa62aea5a59ab9150afa10c8
+2025-09-10 15:08:17,632 - WARNING - Retrying (Retry(total=0, connect=None, read=None, redirect=None, status=None)) after connection broken by 'NewConnectionError('<urllib3.connection.HTTPConnection object at 0x0000028B7A18B6F0>: Failed to establish a new connection: [WinError 10061] 由于目标计算机积极拒绝，无法连接。')': /session/f1f18a80aa62aea5a59ab9150afa10c8

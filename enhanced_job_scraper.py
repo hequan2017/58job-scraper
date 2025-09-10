@@ -43,6 +43,13 @@ def log_print(*args, **kwargs):
     message = ' '.join(str(arg) for arg in args)
     logging.info(message)
 
+# 错误日志打印函数（红色显示）
+def log_error(*args, **kwargs):
+    message = ' '.join(str(arg) for arg in args)
+    logging.error(message)
+    # 在控制台打印红色文字
+    print(f"\033[91m{message}\033[0m")
+
 # 设置日志
 log_filename = setup_logging()
 print(f"日志将保存到: {log_filename}")
@@ -115,6 +122,62 @@ class Enhanced58JobScraper:
         self.driver.set_page_load_timeout(15)  # 减少页面加载超时时间
         self.driver.implicitly_wait(5)  # 减少隐式等待时间
         self.driver.execute_script("Object.defineProperty(navigator, 'webdriver', {get: () => undefined})")
+        
+    def handle_captcha(self, max_retries=3):
+        """自动处理验证码页面"""
+        for attempt in range(max_retries):
+            try:
+                print(f"\n尝试自动处理验证码 (第{attempt + 1}次)...")
+                
+                # 尝试查找并点击跳过按钮
+                skip_buttons = [
+                    "//button[contains(text(), '跳过')]",
+                    "//a[contains(text(), '跳过')]",
+                    "//span[contains(text(), '跳过')]",
+                    "//div[contains(text(), '跳过')]",
+                    "//button[contains(@class, 'skip')]",
+                    "//a[contains(@class, 'skip')]",
+                    "//button[contains(text(), '继续访问')]",
+                    "//a[contains(text(), '继续访问')]",
+                    "//button[contains(text(), '返回')]",
+                    "//a[contains(text(), '返回')]",
+                    "//button[contains(text(), '确定')]",
+                    "//a[contains(text(), '确定')]",
+                    "//input[@type='submit']",
+                    "//button[@type='submit']"
+                ]
+                
+                button_found = False
+                for xpath in skip_buttons:
+                    try:
+                        button = WebDriverWait(self.driver, 2).until(
+                            EC.element_to_be_clickable((By.XPATH, xpath))
+                        )
+                        button.click()
+                        print(f"✓ 成功点击跳过按钮: {xpath}")
+                        button_found = True
+                        time.sleep(2)
+                        break
+                    except:
+                        continue
+                
+                if not button_found:
+                    # 如果没有找到跳过按钮，尝试刷新页面
+                    print("未找到跳过按钮，尝试刷新页面...")
+                    self.driver.refresh()
+                    time.sleep(3)
+                
+                # 检查是否还在验证码页面
+                page_source = self.driver.page_source
+                if "访问过于频繁，本次访问做以下验证码校验" not in page_source and "验证码校验" not in page_source:
+                    print("✓ 验证码处理成功！")
+                    return True
+                    
+            except Exception as e:
+                print(f"自动处理验证码失败: {e}")
+                
+        print("自动处理验证码失败，需要手动处理...")
+        return False
         
     def standardize_company_scale(self, scale_text):
         """
@@ -515,7 +578,7 @@ class Enhanced58JobScraper:
                 unwanted.decompose()
             
             # 移除包含"您可能感兴趣"文本的区域
-            for element in soup.find_all(text=lambda text: text and '您可能感兴趣' in text):
+            for element in soup.find_all(string=lambda text: text and '您可能感兴趣' in text):
                 parent = element.parent
                 while parent and parent.name != 'body':
                     if parent.name in ['div', 'section', 'aside']:
@@ -949,7 +1012,7 @@ class Enhanced58JobScraper:
                 unwanted.decompose()
             
             # 移除包含"您可能感兴趣"文本的区域
-            for element in soup.find_all(text=lambda text: text and '您可能感兴趣' in text):
+            for element in soup.find_all(string=lambda text: text and '您可能感兴趣' in text):
                 parent = element.parent
                 while parent and parent.name != 'body':
                     if parent.name in ['div', 'section', 'aside']:
@@ -1222,7 +1285,7 @@ class Enhanced58JobScraper:
                 ]
                 
                 # 首先尝试查找公司相册区域的图片
-                album_section = soup.find(text=re.compile(r'公司相册|企业相册'))
+                album_section = soup.find(string=re.compile(r'公司相册|企业相册'))
                 image_urls = []
                 
                 if album_section:
@@ -1557,20 +1620,101 @@ class Enhanced58JobScraper:
                     if any(unwanted in region for unwanted in unwanted_keywords):
                         job['所属区域'] = ''  # 如果包含无关词汇，清空该字段
                     else:
-                        # 优先查找"XX省XX市XX区"格式，然后查找"XX市XX区"格式（非贪婪匹配）
-                        region_match = re.search(r'([\u4e00-\u9fa5]{2,4}省[\u4e00-\u9fa5]{2,4}市[\u4e00-\u9fa5]{2,4}区)', region)
-                        if not region_match:
-                            region_match = re.search(r'([\u4e00-\u9fa5]{2,4}市[\u4e00-\u9fa5]{2,4}区)', region)
-                        if region_match:
-                            clean_region = region_match.group(1)
-                            # 确保长度合理
-                            if len(clean_region) <= 10:
-                                job['所属区域'] = clean_region
-                            else:
-                                job['所属区域'] = ''
+                        # 城市到省份的映射字典
+                        city_to_province = {
+                            '广州': '广东', '深圳': '广东', '东莞': '广东', '佛山': '广东', '中山': '广东', '珠海': '广东', '惠州': '广东', '江门': '广东', '湛江': '广东', '茂名': '广东', '肇庆': '广东', '梅州': '广东', '汕头': '广东', '河源': '广东', '阳江': '广东', '清远': '广东', '韶关': '广东', '揭阳': '广东', '潮州': '广东', '云浮': '广东', '汕尾': '广东',
+                            '杭州': '浙江', '宁波': '浙江', '温州': '浙江', '嘉兴': '浙江', '湖州': '浙江', '绍兴': '浙江', '金华': '浙江', '衢州': '浙江', '舟山': '浙江', '台州': '浙江', '丽水': '浙江',
+                            '南京': '江苏', '苏州': '江苏', '无锡': '江苏', '常州': '江苏', '镇江': '江苏', '南通': '江苏', '泰州': '江苏', '扬州': '江苏', '盐城': '江苏', '连云港': '江苏', '徐州': '江苏', '淮安': '江苏', '宿迁': '江苏',
+                            '济南': '山东', '青岛': '山东', '淄博': '山东', '枣庄': '山东', '东营': '山东', '烟台': '山东', '潍坊': '山东', '济宁': '山东', '泰安': '山东', '威海': '山东', '日照': '山东', '临沂': '山东', '德州': '山东', '聊城': '山东', '滨州': '山东', '菏泽': '山东',
+                            '郑州': '河南', '开封': '河南', '洛阳': '河南', '平顶山': '河南', '安阳': '河南', '鹤壁': '河南', '新乡': '河南', '焦作': '河南', '濮阳': '河南', '许昌': '河南', '漯河': '河南', '三门峡': '河南', '南阳': '河南', '商丘': '河南', '信阳': '河南', '周口': '河南', '驻马店': '河南',
+                            '武汉': '湖北', '黄石': '湖北', '十堰': '湖北', '宜昌': '湖北', '襄阳': '湖北', '鄂州': '湖北', '荆门': '湖北', '孝感': '湖北', '荆州': '湖北', '黄冈': '湖北', '咸宁': '湖北', '随州': '湖北',
+                            '长沙': '湖南', '株洲': '湖南', '湘潭': '湖南', '衡阳': '湖南', '邵阳': '湖南', '岳阳': '湖南', '常德': '湖南', '张家界': '湖南', '益阳': '湖南', '郴州': '湖南', '永州': '湖南', '怀化': '湖南', '娄底': '湖南',
+                            '南昌': '江西', '景德镇': '江西', '萍乡': '江西', '九江': '江西', '新余': '江西', '鹰潭': '江西', '赣州': '江西', '吉安': '江西', '宜春': '江西', '抚州': '江西', '上饶': '江西',
+                            '合肥': '安徽', '芜湖': '安徽', '蚌埠': '安徽', '淮南': '安徽', '马鞍山': '安徽', '淮北': '安徽', '铜陵': '安徽', '安庆': '安徽', '黄山': '安徽', '滁州': '安徽', '阜阳': '安徽', '宿州': '安徽', '六安': '安徽', '亳州': '安徽', '池州': '安徽', '宣城': '安徽',
+                            '福州': '福建', '厦门': '福建', '莆田': '福建', '三明': '福建', '泉州': '福建', '漳州': '福建', '南平': '福建', '龙岩': '福建', '宁德': '福建',
+                            '石家庄': '河北', '唐山': '河北', '秦皇岛': '河北', '邯郸': '河北', '邢台': '河北', '保定': '河北', '张家口': '河北', '承德': '河北', '沧州': '河北', '廊坊': '河北', '衡水': '河北',
+                            '太原': '山西', '大同': '山西', '阳泉': '山西', '长治': '山西', '晋城': '山西', '朔州': '山西', '晋中': '山西', '运城': '山西', '忻州': '山西', '临汾': '山西', '吕梁': '山西',
+                            '沈阳': '辽宁', '大连': '辽宁', '鞍山': '辽宁', '抚顺': '辽宁', '本溪': '辽宁', '丹东': '辽宁', '锦州': '辽宁', '营口': '辽宁', '阜新': '辽宁', '辽阳': '辽宁', '盘锦': '辽宁', '铁岭': '辽宁', '朝阳': '辽宁', '葫芦岛': '辽宁',
+                            '长春': '吉林', '吉林': '吉林', '四平': '吉林', '辽源': '吉林', '通化': '吉林', '白山': '吉林', '松原': '吉林', '白城': '吉林',
+                            '哈尔滨': '黑龙江', '齐齐哈尔': '黑龙江', '鸡西': '黑龙江', '鹤岗': '黑龙江', '双鸭山': '黑龙江', '大庆': '黑龙江', '伊春': '黑龙江', '佳木斯': '黑龙江', '七台河': '黑龙江', '牡丹江': '黑龙江', '黑河': '黑龙江', '绥化': '黑龙江',
+                            '成都': '四川', '自贡': '四川', '攀枝花': '四川', '泸州': '四川', '德阳': '四川', '绵阳': '四川', '广元': '四川', '遂宁': '四川', '内江': '四川', '乐山': '四川', '南充': '四川', '眉山': '四川', '宜宾': '四川', '广安': '四川', '达州': '四川', '雅安': '四川', '巴中': '四川', '资阳': '四川',
+                            '贵阳': '贵州', '六盘水': '贵州', '遵义': '贵州', '安顺': '贵州', '毕节': '贵州', '铜仁': '贵州',
+                            '昆明': '云南', '曲靖': '云南', '玉溪': '云南', '保山': '云南', '昭通': '云南', '丽江': '云南', '普洱': '云南', '临沧': '云南',
+                            '西安': '陕西', '铜川': '陕西', '宝鸡': '陕西', '咸阳': '陕西', '渭南': '陕西', '延安': '陕西', '汉中': '陕西', '榆林': '陕西', '安康': '陕西', '商洛': '陕西',
+                            '兰州': '甘肃', '嘉峪关': '甘肃', '金昌': '甘肃', '白银': '甘肃', '天水': '甘肃', '武威': '甘肃', '张掖': '甘肃', '平凉': '甘肃', '酒泉': '甘肃', '庆阳': '甘肃', '定西': '甘肃', '陇南': '甘肃',
+                            '西宁': '青海', '海东': '青海',
+                            '银川': '宁夏', '石嘴山': '宁夏', '吴忠': '宁夏', '固原': '宁夏', '中卫': '宁夏',
+                            '乌鲁木齐': '新疆', '克拉玛依': '新疆', '吐鲁番': '新疆', '哈密': '新疆',
+                            '呼和浩特': '内蒙古', '包头': '内蒙古', '乌海': '内蒙古', '赤峰': '内蒙古', '通辽': '内蒙古', '鄂尔多斯': '内蒙古', '呼伦贝尔': '内蒙古', '巴彦淖尔': '内蒙古', '乌兰察布': '内蒙古',
+                            '拉萨': '西藏', '日喀则': '西藏', '昌都': '西藏', '林芝': '西藏', '山南': '西藏', '那曲': '西藏',
+                            '海口': '海南', '三亚': '海南', '三沙': '海南', '儋州': '海南'
+                        }
+                        
+                        # 首先处理"广州荔湾区"这种格式（城市+区域，缺少"市"字）
+                        city_district_match = re.search(r'^([\u4e00-\u9fa5]{2,4})([\u4e00-\u9fa5]{2,4}区)$', region)
+                        if city_district_match:
+                            city = city_district_match.group(1)
+                            district = city_district_match.group(2)
+                            
+                            # 只添加"市"字，不添加省份
+                            fixed_region = f"{city}市{district}"
+                            print(f"✓ 所属区域已自动修复: {region} -> {fixed_region}")
+                            job['所属区域'] = fixed_region
                         else:
-                            # 如果没有匹配到标准格式，清空该字段
-                            job['所属区域'] = ''
+                            # 处理其他格式
+                            city_fix_match = re.search(r'([\u4e00-\u9fa5]{2,4})(省)?([\u4e00-\u9fa5]{2,4})(市)?([\u4e00-\u9fa5]{2,4}区)', region)
+                            if city_fix_match:
+                                province = city_fix_match.group(1)
+                                has_province = city_fix_match.group(2) is not None
+                                city = city_fix_match.group(3)
+                                has_city_suffix = city_fix_match.group(4) is not None
+                                district = city_fix_match.group(5)
+                                
+                                # 构建标准格式
+                                if has_province and not has_city_suffix:
+                                    # "XX省XX区" -> "XX省XX市XX区"
+                                    fixed_region = f"{province}省{city}市{district}"
+                                    job['所属区域'] = fixed_region
+                                elif not has_province and not has_city_suffix:
+                                    # "XXXX区" -> "XX省XX市XX区" (根据城市名查找对应省份)
+                                    if len(city) >= 2:
+                                        # 检查城市名是否在映射字典中
+                                        if city in city_to_province:
+                                            province_name = city_to_province[city]
+                                            fixed_region = f"{province_name}省{city}市{district}"
+                                            job['所属区域'] = fixed_region
+                                        else:
+                                            # 如果城市名不在映射中，只添加"市"字
+                                            fixed_region = f"{city}市{district}"
+                                            job['所属区域'] = fixed_region
+                                    else:
+                                        job['所属区域'] = region  # 保持原样
+                                elif not has_province and has_city_suffix:
+                                    # "XX市XX区" -> "XX省XX市XX区" (根据城市名查找对应省份)
+                                    if city in city_to_province:
+                                        province_name = city_to_province[city]
+                                        fixed_region = f"{province_name}省{city}市{district}"
+                                        job['所属区域'] = fixed_region
+                                    else:
+                                        job['所属区域'] = region  # 保持原样
+                                else:
+                                    job['所属区域'] = region  # 已经是标准格式
+                            else:
+                                # 如果修复失败，尝试原有的正则匹配
+                                # 优先查找"XX省XX市XX区"格式，然后查找"XX市XX区"格式（非贪婪匹配）
+                                region_match = re.search(r'([\u4e00-\u9fa5]{2,4}省[\u4e00-\u9fa5]{2,4}市[\u4e00-\u9fa5]{2,4}区)', region)
+                                if not region_match:
+                                    region_match = re.search(r'([\u4e00-\u9fa5]{2,4}市[\u4e00-\u9fa5]{2,4}区)', region)
+                                if region_match:
+                                    clean_region = region_match.group(1)
+                                    # 确保长度合理
+                                    if len(clean_region) <= 10:
+                                        job['所属区域'] = clean_region
+                                    else:
+                                        job['所属区域'] = ''
+                                else:
+                                    # 如果没有匹配到标准格式，清空该字段
+                                    job['所属区域'] = ''
                 
                 processed_data.append(job)
             
@@ -1610,17 +1754,17 @@ class Enhanced58JobScraper:
         
         # 检查企业名称是否为空，如果为空则不保存
         if not job_data or not job_data.get('企业名称') or job_data.get('企业名称').strip() == '':
-            print(f"× 跳过保存：企业名称为空的职位数据 - {job_data.get('岗位名称', 'N/A') if job_data else 'N/A'}")
+            log_error(f"× 跳过保存：企业名称为空的职位数据 - {job_data.get('岗位名称', 'N/A') if job_data else 'N/A'}")
             return False
         
         # 检查工作职责是否为空，如果为空则不保存
         if not job_data.get('工作职责') or job_data.get('工作职责').strip() == '':
-            print(f"× 跳过保存：工作职责为空的职位数据 - {job_data.get('岗位名称', 'N/A')} - {job_data.get('企业名称', 'N/A')}")
+            log_error(f"× 跳过保存：工作职责为空的职位数据 - {job_data.get('岗位名称', 'N/A')} - {job_data.get('企业名称', 'N/A')}")
             return False
         
         # 检查任职要求是否为空，如果为空则不保存
         if not job_data.get('任职要求') or job_data.get('任职要求').strip() == '':
-            print(f"× 跳过保存：任职要求为空的职位数据 - {job_data.get('岗位名称', 'N/A')} - {job_data.get('企业名称', 'N/A')}")
+            log_error(f"× 跳过保存：任职要求为空的职位数据 - {job_data.get('岗位名称', 'N/A')} - {job_data.get('企业名称', 'N/A')}")
             return False
         
         # 处理所属区域：如果为空，用工作地点的值替代，去掉横线并格式化
@@ -1650,65 +1794,151 @@ class Enhanced58JobScraper:
                 job_data['所属区域'] = ''  # 如果包含无关词汇，清空该字段
                 print(f"× 所属区域包含无关内容已清空: {region}")
             else:
-                # 首先尝试修复"北京海淀区"这种缺少"市"字的格式
-                # 匹配"XX省XX区"或"XX市XX区"或"XXXX区"格式，并自动补充"市"字
-                city_fix_match = re.search(r'([\u4e00-\u9fa5]{2,4})(省)?([\u4e00-\u9fa5]{2,4})(市)?([\u4e00-\u9fa5]{2,4}区)', region)
-                if city_fix_match:
-                    province = city_fix_match.group(1)
-                    has_province = city_fix_match.group(2) is not None
-                    city = city_fix_match.group(3)
-                    has_city_suffix = city_fix_match.group(4) is not None
-                    district = city_fix_match.group(5)
+                # 城市到省份的映射字典
+                city_to_province = {
+                    '广州': '广东', '深圳': '广东', '东莞': '广东', '佛山': '广东', '中山': '广东', '珠海': '广东', '惠州': '广东', '江门': '广东', '湛江': '广东', '茂名': '广东', '肇庆': '广东', '梅州': '广东', '汕头': '广东', '河源': '广东', '阳江': '广东', '清远': '广东', '韶关': '广东', '揭阳': '广东', '潮州': '广东', '云浮': '广东', '汕尾': '广东',
+                    '杭州': '浙江', '宁波': '浙江', '温州': '浙江', '嘉兴': '浙江', '湖州': '浙江', '绍兴': '浙江', '金华': '浙江', '衢州': '浙江', '舟山': '浙江', '台州': '浙江', '丽水': '浙江',
+                    '南京': '江苏', '苏州': '江苏', '无锡': '江苏', '常州': '江苏', '镇江': '江苏', '南通': '江苏', '泰州': '江苏', '扬州': '江苏', '盐城': '江苏', '连云港': '江苏', '徐州': '江苏', '淮安': '江苏', '宿迁': '江苏',
+                    '济南': '山东', '青岛': '山东', '淄博': '山东', '枣庄': '山东', '东营': '山东', '烟台': '山东', '潍坊': '山东', '济宁': '山东', '泰安': '山东', '威海': '山东', '日照': '山东', '临沂': '山东', '德州': '山东', '聊城': '山东', '滨州': '山东', '菏泽': '山东',
+                    '郑州': '河南', '开封': '河南', '洛阳': '河南', '平顶山': '河南', '安阳': '河南', '鹤壁': '河南', '新乡': '河南', '焦作': '河南', '濮阳': '河南', '许昌': '河南', '漯河': '河南', '三门峡': '河南', '南阳': '河南', '商丘': '河南', '信阳': '河南', '周口': '河南', '驻马店': '河南',
+                    '武汉': '湖北', '黄石': '湖北', '十堰': '湖北', '宜昌': '湖北', '襄阳': '湖北', '鄂州': '湖北', '荆门': '湖北', '孝感': '湖北', '荆州': '湖北', '黄冈': '湖北', '咸宁': '湖北', '随州': '湖北',
+                    '长沙': '湖南', '株洲': '湖南', '湘潭': '湖南', '衡阳': '湖南', '邵阳': '湖南', '岳阳': '湖南', '常德': '湖南', '张家界': '湖南', '益阳': '湖南', '郴州': '湖南', '永州': '湖南', '怀化': '湖南', '娄底': '湖南',
+                    '南昌': '江西', '景德镇': '江西', '萍乡': '江西', '九江': '江西', '新余': '江西', '鹰潭': '江西', '赣州': '江西', '吉安': '江西', '宜春': '江西', '抚州': '江西', '上饶': '江西',
+                    '合肥': '安徽', '芜湖': '安徽', '蚌埠': '安徽', '淮南': '安徽', '马鞍山': '安徽', '淮北': '安徽', '铜陵': '安徽', '安庆': '安徽', '黄山': '安徽', '滁州': '安徽', '阜阳': '安徽', '宿州': '安徽', '六安': '安徽', '亳州': '安徽', '池州': '安徽', '宣城': '安徽',
+                    '福州': '福建', '厦门': '福建', '莆田': '福建', '三明': '福建', '泉州': '福建', '漳州': '福建', '南平': '福建', '龙岩': '福建', '宁德': '福建',
+                    '石家庄': '河北', '唐山': '河北', '秦皇岛': '河北', '邯郸': '河北', '邢台': '河北', '保定': '河北', '张家口': '河北', '承德': '河北', '沧州': '河北', '廊坊': '河北', '衡水': '河北',
+                    '太原': '山西', '大同': '山西', '阳泉': '山西', '长治': '山西', '晋城': '山西', '朔州': '山西', '晋中': '山西', '运城': '山西', '忻州': '山西', '临汾': '山西', '吕梁': '山西',
+                    '沈阳': '辽宁', '大连': '辽宁', '鞍山': '辽宁', '抚顺': '辽宁', '本溪': '辽宁', '丹东': '辽宁', '锦州': '辽宁', '营口': '辽宁', '阜新': '辽宁', '辽阳': '辽宁', '盘锦': '辽宁', '铁岭': '辽宁', '朝阳': '辽宁', '葫芦岛': '辽宁',
+                    '长春': '吉林', '吉林': '吉林', '四平': '吉林', '辽源': '吉林', '通化': '吉林', '白山': '吉林', '松原': '吉林', '白城': '吉林',
+                    '哈尔滨': '黑龙江', '齐齐哈尔': '黑龙江', '鸡西': '黑龙江', '鹤岗': '黑龙江', '双鸭山': '黑龙江', '大庆': '黑龙江', '伊春': '黑龙江', '佳木斯': '黑龙江', '七台河': '黑龙江', '牡丹江': '黑龙江', '黑河': '黑龙江', '绥化': '黑龙江',
+                    '成都': '四川', '自贡': '四川', '攀枝花': '四川', '泸州': '四川', '德阳': '四川', '绵阳': '四川', '广元': '四川', '遂宁': '四川', '内江': '四川', '乐山': '四川', '南充': '四川', '眉山': '四川', '宜宾': '四川', '广安': '四川', '达州': '四川', '雅安': '四川', '巴中': '四川', '资阳': '四川',
+                    '贵阳': '贵州', '六盘水': '贵州', '遵义': '贵州', '安顺': '贵州', '毕节': '贵州', '铜仁': '贵州',
+                    '昆明': '云南', '曲靖': '云南', '玉溪': '云南', '保山': '云南', '昭通': '云南', '丽江': '云南', '普洱': '云南', '临沧': '云南',
+                    '西安': '陕西', '铜川': '陕西', '宝鸡': '陕西', '咸阳': '陕西', '渭南': '陕西', '延安': '陕西', '汉中': '陕西', '榆林': '陕西', '安康': '陕西', '商洛': '陕西',
+                    '兰州': '甘肃', '嘉峪关': '甘肃', '金昌': '甘肃', '白银': '甘肃', '天水': '甘肃', '武威': '甘肃', '张掖': '甘肃', '平凉': '甘肃', '酒泉': '甘肃', '庆阳': '甘肃', '定西': '甘肃', '陇南': '甘肃',
+                    '西宁': '青海', '海东': '青海',
+                    '银川': '宁夏', '石嘴山': '宁夏', '吴忠': '宁夏', '固原': '宁夏', '中卫': '宁夏',
+                    '乌鲁木齐': '新疆', '克拉玛依': '新疆', '吐鲁番': '新疆', '哈密': '新疆',
+                    '呼和浩特': '内蒙古', '包头': '内蒙古', '乌海': '内蒙古', '赤峰': '内蒙古', '通辽': '内蒙古', '鄂尔多斯': '内蒙古', '呼伦贝尔': '内蒙古', '巴彦淖尔': '内蒙古', '乌兰察布': '内蒙古',
+                    '拉萨': '西藏', '日喀则': '西藏', '昌都': '西藏', '林芝': '西藏', '山南': '西藏', '那曲': '西藏',
+                    '海口': '海南', '三亚': '海南', '三沙': '海南', '儋州': '海南'
+                }
+                
+                # 首先处理"广州荔湾区"这种格式（城市+区域，缺少"市"字）
+                city_district_match = re.search(r'^([\u4e00-\u9fa5]{2,4})([\u4e00-\u9fa5]{2,4}区)$', region)
+                if city_district_match:
+                    city = city_district_match.group(1)
+                    district = city_district_match.group(2)
                     
-                    # 构建标准格式
-                    if has_province and not has_city_suffix:
-                        # "XX省XX区" -> "XX省XX市XX区"
-                        fixed_region = f"{province}省{city}市{district}"
+                    # 检查城市名是否在映射字典中
+                    if city in city_to_province:
+                        province_name = city_to_province[city]
+                        fixed_region = f"{province_name}省{city}市{district}"
                         print(f"✓ 所属区域已自动修复: {region} -> {fixed_region}")
                         job_data['所属区域'] = fixed_region
-                    elif not has_province and not has_city_suffix:
-                        # "XXXX区" -> "XX市XX区" (假设前两个字符是城市名)
-                        if len(city) >= 2:
-                            fixed_region = f"{city}市{district}"
+                    else:
+                        # 如果城市名不在映射中，只添加"市"字
+                        fixed_region = f"{city}市{district}"
+                        print(f"✓ 所属区域已自动修复: {region} -> {fixed_region}")
+                        job_data['所属区域'] = fixed_region
+                else:
+                    # 处理其他格式
+                    # 匹配"XX省XX区"或"XX市XX区"或"XXXX区"格式，并自动补充"省"和"市"字
+                    city_fix_match = re.search(r'([\u4e00-\u9fa5]{2,4})(省)?([\u4e00-\u9fa5]{2,4})(市)?([\u4e00-\u9fa5]{2,4}区)', region)
+                    if city_fix_match:
+                        province = city_fix_match.group(1)
+                        has_province = city_fix_match.group(2) is not None
+                        city = city_fix_match.group(3)
+                        has_city_suffix = city_fix_match.group(4) is not None
+                        district = city_fix_match.group(5)
+                        
+                        # 构建标准格式
+                        if has_province and not has_city_suffix:
+                            # "XX省XX区" -> "XX省XX市XX区"
+                            fixed_region = f"{province}省{city}市{district}"
                             print(f"✓ 所属区域已自动修复: {region} -> {fixed_region}")
                             job_data['所属区域'] = fixed_region
+                        elif not has_province and not has_city_suffix:
+                            # "XXXX区" -> "XX省XX市XX区" (根据城市名查找对应省份)
+                            if len(city) >= 2:
+                                # 检查城市名是否在映射字典中
+                                if city in city_to_province:
+                                    province_name = city_to_province[city]
+                                    fixed_region = f"{province_name}省{city}市{district}"
+                                    print(f"✓ 所属区域已自动修复: {region} -> {fixed_region}")
+                                    job_data['所属区域'] = fixed_region
+                                else:
+                                    # 如果城市名不在映射中，只添加"市"字
+                                    fixed_region = f"{city}市{district}"
+                                    print(f"✓ 所属区域已自动修复: {region} -> {fixed_region}")
+                                    job_data['所属区域'] = fixed_region
+                            else:
+                                job_data['所属区域'] = region  # 保持原样
+                        elif not has_province and has_city_suffix:
+                            # "XX市XX区" -> "XX省XX市XX区" (根据城市名查找对应省份)
+                            if city in city_to_province:
+                                province_name = city_to_province[city]
+                                fixed_region = f"{province_name}省{city}市{district}"
+                                print(f"✓ 所属区域已自动修复: {region} -> {fixed_region}")
+                                job_data['所属区域'] = fixed_region
+                            else:
+                                job_data['所属区域'] = region  # 保持原样
                         else:
-                            job_data['所属区域'] = region  # 保持原样
+                            job_data['所属区域'] = region  # 已经是标准格式
                     else:
-                        job_data['所属区域'] = region  # 已经是标准格式
-                else:
-                    # 如果修复失败，尝试原有的正则匹配
-                    # 优先查找"XX省XX市XX区"格式，然后查找"XX市XX区"格式（非贪婪匹配）
-                    region_match = re.search(r'([\u4e00-\u9fa5]{2,4}省[\u4e00-\u9fa5]{2,4}市[\u4e00-\u9fa5]{2,4}区)', region)
-                    if not region_match:
-                        region_match = re.search(r'([\u4e00-\u9fa5]{2,4}市[\u4e00-\u9fa5]{2,4}区)', region)
-                    if region_match:
-                        clean_region = region_match.group(1)
-                        # 确保长度合理
-                        if len(clean_region) <= 10:
-                            if clean_region != job_data['所属区域']:
-                                print(f"✓ 所属区域已清理: {job_data['所属区域']} -> {clean_region}")
-                            job_data['所属区域'] = clean_region
+                        # 如果修复失败，尝试原有的正则匹配
+                        # 优先查找"XX省XX市XX区"格式，然后查找"XX市XX区"格式（非贪婪匹配）
+                        region_match = re.search(r'([\u4e00-\u9fa5]{2,4}省[\u4e00-\u9fa5]{2,4}市[\u4e00-\u9fa5]{2,4}区)', region)
+                        if not region_match:
+                            region_match = re.search(r'([\u4e00-\u9fa5]{2,4}市[\u4e00-\u9fa5]{2,4}区)', region)
+                        
+                        # 如果还没匹配到，尝试匹配直辖市格式"XX丰台区"并自动补充"市"字
+                        if not region_match:
+                            # 匹配直辖市格式：北京、上海、天津、重庆 + 区名
+                            municipality_match = re.search(r'(北京|上海|天津|重庆)([\u4e00-\u9fa5]{2,4}区)', region)
+                            if municipality_match:
+                                municipality = municipality_match.group(1)
+                                district = municipality_match.group(2)
+                                clean_region = f"{municipality}市{district}"
+                                print(f"✓ 直辖市格式已标准化: {region} -> {clean_region}")
+                                job_data['所属区域'] = clean_region
+                            else:
+                                # 尝试匹配其他城市格式"XX高新区"、"XX开发区"等，自动补充"市"字
+                                city_district_match = re.search(r'([\u4e00-\u9fa5]{2,4})(高新区|开发区|经济区|新区|工业区|科技园|软件园)', region)
+                                if city_district_match:
+                                    city = city_district_match.group(1)
+                                    district = city_district_match.group(2)
+                                    clean_region = f"{city}市{district}"
+                                    print(f"✓ 城市区域格式已标准化: {region} -> {clean_region}")
+                                    job_data['所属区域'] = clean_region
+                                else:
+                                    # 如果没有匹配到任何标准格式，清空该字段
+                                    job_data['所属区域'] = ''
+                                    print(f"× 所属区域格式不标准已清空: {region}")
                         else:
-                            job_data['所属区域'] = ''
-                            print(f"× 所属区域长度异常已清空: {clean_region}")
-                    else:
-                        # 如果没有匹配到标准格式，清空该字段
-                        job_data['所属区域'] = ''
-                        print(f"× 所属区域格式不标准已清空: {region}")
+                            clean_region = region_match.group(1)
+                            # 确保长度合理
+                            if len(clean_region) <= 10:
+                                if clean_region != job_data['所属区域']:
+                                    print(f"✓ 所属区域已清理: {job_data['所属区域']} -> {clean_region}")
+                                job_data['所属区域'] = clean_region
+                            else:
+                                job_data['所属区域'] = ''
+                                print(f"× 所属区域长度异常已清空: {clean_region}")
                 
                 # 最终验证修复后的格式是否符合标准
                 final_region = job_data.get('所属区域', '')
                 if final_region:
-                    # 验证最终格式是否为"XX省XX市XX区"或"XX市XX区"
+                    # 验证最终格式是否为"XX省XX市XX区"、"XX市XX区"或"XX市XX开发区"等
                     if not (re.match(r'^[\u4e00-\u9fa5]{2,4}省[\u4e00-\u9fa5]{2,4}市[\u4e00-\u9fa5]{2,4}区$', final_region) or 
-                           re.match(r'^[\u4e00-\u9fa5]{2,4}市[\u4e00-\u9fa5]{2,4}区$', final_region)):
+                           re.match(r'^[\u4e00-\u9fa5]{2,4}市[\u4e00-\u9fa5]{2,4}区$', final_region) or
+                           re.match(r'^[\u4e00-\u9fa5]{2,4}市(高新区|开发区|经济区|新区|工业区|科技园|软件园)$', final_region)):
                         job_data['所属区域'] = ''
                         print(f"× 所属区域最终格式验证失败已清空: {final_region}")
 
         # 检查所属区域是否为空，如果为空则不保存
         if not job_data.get('所属区域') or job_data.get('所属区域').strip() == '':
-            print(f"× 跳过保存：所属区域为空的职位数据 - {job_data.get('岗位名称', 'N/A')} - {job_data.get('企业名称', 'N/A')}")
+            log_error(f"× 跳过保存：所属区域为空的职位数据 - {job_data.get('岗位名称', 'N/A')} - {job_data.get('企业名称', 'N/A')}")
             return False
 
         if job_data:
@@ -1723,6 +1953,11 @@ class Enhanced58JobScraper:
                 # 同时写入JSON文件
                 json_filename = filename.replace('.xlsx', '.json')
                 json_data = combined_df.to_dict('records')
+                # 处理NaN值，将其替换为空字符串
+                for record in json_data:
+                    for key, value in record.items():
+                        if pd.isna(value):
+                            record[key] = ""
                 with open(json_filename, 'w', encoding='utf-8') as f:
                     json.dump(json_data, f, ensure_ascii=False, indent=2)
             else:
@@ -1733,6 +1968,11 @@ class Enhanced58JobScraper:
                 # 同时创建JSON文件
                 json_filename = filename.replace('.xlsx', '.json')
                 json_data = df.to_dict('records')
+                # 处理NaN值，将其替换为空字符串
+                for record in json_data:
+                    for key, value in record.items():
+                        if pd.isna(value):
+                            record[key] = ""
                 with open(json_filename, 'w', encoding='utf-8') as f:
                     json.dump(json_data, f, ensure_ascii=False, indent=2)
             
@@ -1791,6 +2031,15 @@ def main():
     
     # 清空Excel文件的数据行，保留表头
     scraper.clear_excel_data("58同城多城市职位详细信息.xlsx")
+    
+    # 清空JSON文件的所有数据
+    json_filename = "58同城多城市职位详细信息.json"
+    try:
+        with open(json_filename, 'w', encoding='utf-8') as f:
+            json.dump([], f, ensure_ascii=False, indent=2)
+        print(f"✓ 已清空 {json_filename} 的所有数据")
+    except Exception as e:
+        print(f"清空JSON文件时出错: {e}")
     
     all_data = []  # 存储所有城市的数据
     
