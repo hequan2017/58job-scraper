@@ -1634,6 +1634,10 @@ class Enhanced58JobScraper:
                 if not job.get('任职要求') or job.get('任职要求').strip() == '':
                     continue
                 
+                # 过滤掉指定的企业
+                if job.get('企业名称') == '广东天杰国际人才科技有限公司':
+                    continue
+                
                 # 处理所属区域：如果为空，用工作地点的值替代，去掉横线并格式化
                 if not job.get('所属区域') or job.get('所属区域').strip() == '':
                     work_location = job.get('工作地点', '')
@@ -1830,6 +1834,11 @@ class Enhanced58JobScraper:
             log_error(f"× 跳过保存：企业名称为空的职位数据 - {job_data.get('岗位名称', 'N/A') if job_data else 'N/A'}")
             return False
         
+        # 过滤掉指定的企业
+        if job_data.get('企业名称') == '广东天杰国际人才科技有限公司':
+            log_error(f"× 跳过保存：过滤企业 - {job_data.get('岗位名称', 'N/A')} - {job_data.get('企业名称', 'N/A')}")
+            return False
+        
         # 检查工作职责是否为空，如果为空则不保存
         if not job_data.get('工作职责') or job_data.get('工作职责').strip() == '':
             log_error(f"× 跳过保存：工作职责为空的职位数据 - {job_data.get('岗位名称', 'N/A')} - {job_data.get('企业名称', 'N/A')}")
@@ -1918,11 +1927,8 @@ class Enhanced58JobScraper:
                          # 检查城市名是否在映射字典中
                          if city in city_to_province:
                              province_name = city_to_province[city]
-                             # 对广东省的城市去掉区级信息
-                             if city in guangdong_cities:
-                                 fixed_region = f"{province_name}省{city}市"
-                             else:
-                                 fixed_region = f"{province_name}省{city}市{district}"
+                             # 对所有非直辖市的城市去掉区级信息，只保留省市格式
+                             fixed_region = f"{province_name}省{city}市"
                              print(f"✓ 所属区域已自动修复: {region} -> {fixed_region}")
                              job_data['所属区域'] = fixed_region
                          else:
@@ -1944,11 +1950,8 @@ class Enhanced58JobScraper:
                              # 构建标准格式（对所有省份去掉区级信息）
                              
                              if has_province and not has_city_suffix:
-                                 # "XX省XX区" -> 只对广东省去掉区级信息
-                                 if province == '广东':
-                                     fixed_region = f"{province}省{city}市"
-                                 else:
-                                     fixed_region = f"{province}省{city}市{district}"
+                                 # "XX省XX区" -> 对所有省份去掉区级信息
+                                 fixed_region = f"{province}省{city}市"
                                  print(f"✓ 所属区域已自动修复: {region} -> {fixed_region}")
                                  job_data['所属区域'] = fixed_region
                              elif not has_province and not has_city_suffix:
@@ -1964,27 +1967,34 @@ class Enhanced58JobScraper:
                                  else:
                                      job_data['所属区域'] = region  # 保持原样
                              elif not has_province and has_city_suffix:
-                                 # "XX市XX区" -> 根据城市名判断是否为广东省
-                                 guangdong_cities = ['广州', '深圳', '珠海', '汕头', '佛山', '韶关', '湛江', '肇庆', '江门', '茂名', '惠州', '梅州', '汕尾', '河源', '阳江', '清远', '东莞', '中山', '潮州', '揭阳', '云浮']
-                                 if city in guangdong_cities:
-                                     fixed_region = f"广东省{city}市"
+                                 # "XX市XX区" -> 对所有非直辖市城市去掉区级信息
+                                 # 检查是否为直辖市
+                                 municipalities = ['北京', '上海', '天津', '重庆']
+                                 if city in municipalities:
+                                     # 直辖市保留区级信息
+                                     fixed_region = f"{city}市{district}"
                                  elif city in city_to_province:
+                                     # 非直辖市去掉区级信息
                                      province_name = city_to_province[city]
-                                     fixed_region = f"{province_name}省{city}市{district}"
+                                     fixed_region = f"{province_name}省{city}市"
                                  else:
+                                     # 未知城市，保留原格式
                                      fixed_region = f"{city}市{district}"
                                  print(f"✓ 所属区域已自动修复: {region} -> {fixed_region}")
                                  job_data['所属区域'] = fixed_region
                              else:
-                                 # 已经是标准格式，只对广东省去掉区级信息
+                                 # 已经是标准格式，对所有非直辖市去掉区级信息
                                  if has_province and has_city_suffix:
-                                     guangdong_cities = ['广州', '深圳', '珠海', '汕头', '佛山', '韶关', '湛江', '肇庆', '江门', '茂名', '惠州', '梅州', '汕尾', '河源', '阳江', '清远', '东莞', '中山', '潮州', '揭阳', '云浮']
-                                     if province == '广东' and city in guangdong_cities:
+                                     # 检查是否为直辖市
+                                     municipalities = ['北京', '上海', '天津', '重庆']
+                                     if city in municipalities:
+                                         # 直辖市保留区级信息
+                                         job_data['所属区域'] = region  # 保持原样
+                                     else:
+                                         # 非直辖市去掉区级信息
                                          fixed_region = f"{province}省{city}市"
                                          print(f"✓ 所属区域已自动修复: {region} -> {fixed_region}")
                                          job_data['所属区域'] = fixed_region
-                                     else:
-                                         job_data['所属区域'] = region  # 保持原样
                                  else:
                                      job_data['所属区域'] = region  # 保持原样
                          else:
@@ -2053,11 +2063,23 @@ class Enhanced58JobScraper:
                 # 最终验证修复后的格式是否符合标准
                 final_region = job_data.get('所属区域', '')
                 if final_region:
-                    # 验证最终格式是否为"XX省XX市"、"XX市"、"XX市XX区"或"XX省XX市XX区"格式
-                    if not (re.match(r'^[\u4e00-\u9fa5]{2,4}省[\u4e00-\u9fa5]{2,4}市$', final_region) or 
-                           re.match(r'^[\u4e00-\u9fa5]{2,4}市$', final_region) or
-                           re.match(r'^[\u4e00-\u9fa5]{2,4}市[\u4e00-\u9fa5]{2,4}区$', final_region) or
-                           re.match(r'^[\u4e00-\u9fa5]{2,4}省[\u4e00-\u9fa5]{2,4}市[\u4e00-\u9fa5]{2,4}区$', final_region)):
+                    # 验证最终格式：只接受"XX省XX市"、"XX市"和直辖市"XX市XX区"格式
+                    municipalities = ['北京', '上海', '天津', '重庆']
+                    is_valid = False
+                    
+                    # 检查是否为"XX省XX市"格式
+                    if re.match(r'^[\u4e00-\u9fa5]{2,4}省[\u4e00-\u9fa5]{2,4}市$', final_region):
+                        is_valid = True
+                    # 检查是否为"XX市"格式
+                    elif re.match(r'^[\u4e00-\u9fa5]{2,4}市$', final_region):
+                        is_valid = True
+                    # 检查是否为直辖市"XX市XX区"格式
+                    elif re.match(r'^[\u4e00-\u9fa5]{2,4}市[\u4e00-\u9fa5]{2,4}区$', final_region):
+                        city_match = re.match(r'^([\u4e00-\u9fa5]{2,4})市[\u4e00-\u9fa5]{2,4}区$', final_region)
+                        if city_match and city_match.group(1) in municipalities:
+                            is_valid = True
+                    
+                    if not is_valid:
                         job_data['所属区域'] = ''
                         print(f"× 所属区域最终格式验证失败已清空: {final_region}")
 
