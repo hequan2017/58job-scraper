@@ -174,7 +174,7 @@ class Enhanced58JobScraper:
                         button.click()
                         print(f"✓ 成功点击跳过按钮: {xpath}")
                         button_found = True
-                        time.sleep(2)
+                        time.sleep(0.3)
                         break
                     except:
                         continue
@@ -183,7 +183,7 @@ class Enhanced58JobScraper:
                     # 如果没有找到跳过按钮，尝试刷新页面
                     print("未找到跳过按钮，尝试刷新页面...")
                     self.driver.refresh()
-                    time.sleep(3)
+                    time.sleep(1.5)
                 
                 # 检查是否还在验证码页面
                 page_source = self.driver.page_source
@@ -323,12 +323,12 @@ class Enhanced58JobScraper:
         """从58同城列表页获取职位链接并进入详情页抓取信息"""
         print(f"正在访问: {url}")
         self.driver.get(url)
-        time.sleep(0.5)  # 减少页面访问延时
+        time.sleep(0.2)  # 进一步减少页面访问延时
         
         jobs_data = []
         try:
             # 等待页面加载
-            WebDriverWait(self.driver, 8).until(
+            WebDriverWait(self.driver, 5).until(
                 EC.presence_of_element_located((By.TAG_NAME, "body"))
             )
             
@@ -365,7 +365,7 @@ class Enhanced58JobScraper:
                         
                         # 职位间延时，避免访问过于频繁
                         if i < len(job_links):
-                            time.sleep(0.5)
+                            time.sleep(0.2)
                             
                     except Exception as e:
                         print(f"处理第{i}个职位失败: {e}")
@@ -420,7 +420,7 @@ class Enhanced58JobScraper:
                     if next_page_element:
                         # 点击下一页
                         self.driver.execute_script("arguments[0].click();", next_page_element)
-                        time.sleep(3)
+                        time.sleep(1.5)
                         
                         # 获取当前页面URL
                         current_url = self.driver.current_url
@@ -441,7 +441,7 @@ class Enhanced58JobScraper:
                     # 尝试访问默认URL
                     try:
                         self.driver.get(fallback_url)
-                        time.sleep(2)
+                        time.sleep(1)
                     except:
                         pass
         
@@ -478,7 +478,7 @@ class Enhanced58JobScraper:
                 # 页面间延时，避免访问过于频繁
                 if i < len(url_list):
                     print(f"等待 1 秒后继续下一页...")
-                    time.sleep(1)  # 减少页面间延时
+                    time.sleep(0.3)  # 进一步减少页面间延时
                     
             except Exception as e:
                 print(f"抓取第 {i} 页时出错: {e}")
@@ -576,10 +576,10 @@ class Enhanced58JobScraper:
         try:
             # 访问职位详情页
             self.driver.get(job_url)
-            time.sleep(1)
+            time.sleep(0.3)
             
             # 等待页面加载
-            WebDriverWait(self.driver, 6).until(
+            WebDriverWait(self.driver, 4).until(
                 EC.presence_of_element_located((By.TAG_NAME, "body"))
             )
             
@@ -1021,10 +1021,10 @@ class Enhanced58JobScraper:
         try:
             # 访问企业详情页
             self.driver.get(company_url)
-            time.sleep(0.5)  # 减少企业详情页延时
+            time.sleep(0.2)  # 进一步减少企业详情页延时
             
             # 等待页面加载
-            WebDriverWait(self.driver, 6).until(
+            WebDriverWait(self.driver, 4).until(
                 EC.presence_of_element_located((By.TAG_NAME, "body"))
             )
             
@@ -1762,12 +1762,24 @@ class Enhanced58JobScraper:
                                 region_match = re.search(r'([\u4e00-\u9fa5]{2,4}市[\u4e00-\u9fa5]{2,4}区)', region)
                             if region_match:
                                 clean_region = region_match.group(1)
-                                # 检查是否为省市区格式，如果是则去掉区级信息
+                                # 统一将所有区级信息简化为省市级别
                                 province_city_match = re.search(r'([\u4e00-\u9fa5]{2,4})省([\u4e00-\u9fa5]{2,4})市', clean_region)
                                 if province_city_match:
+                                    # 省市区格式，去掉区级信息
                                     province_name = province_city_match.group(1)
                                     city_name = province_city_match.group(2)
                                     clean_region = f"{province_name}省{city_name}市"
+                                else:
+                                    # 市区格式，需要根据城市映射到对应省份
+                                    city_district_match = re.search(r'([\u4e00-\u9fa5]{2,4})市[\u4e00-\u9fa5]{2,4}区', clean_region)
+                                    if city_district_match:
+                                        city_name = city_district_match.group(1)
+                                        # 使用城市到省份的映射
+                                        if city_name in city_to_province:
+                                            province_name = city_to_province[city_name]
+                                            clean_region = f"{province_name}省{city_name}市"
+                                        else:
+                                            clean_region = f"{city_name}市"
                                 # 确保长度合理
                                 if len(clean_region) <= 10:
                                     job['所属区域'] = clean_region
@@ -1993,17 +2005,16 @@ class Enhanced58JobScraper:
                                      print(f"✓ 直辖市格式已标准化: {region} -> {clean_region}")
                                      job_data['所属区域'] = clean_region
                                  else:
-                                     # 尝试匹配其他城市格式"XX高新区"、"XX开发区"等
+                                     # 尝试匹配其他城市格式"XX高新区"、"XX开发区"等，简化为省市级别
                                      city_district_match = re.search(r'([\u4e00-\u9fa5]{2,4})(高新区|开发区|经济区|新区|工业区|科技园|软件园)', region)
                                      if city_district_match:
                                          city = city_district_match.group(1)
-                                         district = city_district_match.group(2)
-                                         # 检查是否为广东省的城市
-                                         guangdong_cities = ['广州', '深圳', '珠海', '汕头', '佛山', '韶关', '湛江', '肇庆', '江门', '茂名', '惠州', '梅州', '汕尾', '河源', '阳江', '清远', '东莞', '中山', '潮州', '揭阳', '云浮']
-                                         if city in guangdong_cities:
-                                             clean_region = f"广东省{city}市"
+                                         # 使用城市到省份的映射
+                                         if city in city_to_province:
+                                             province_name = city_to_province[city]
+                                             clean_region = f"{province_name}省{city}市"
                                          else:
-                                             clean_region = f"{city}市{district}"
+                                             clean_region = f"{city}市"
                                          print(f"✓ 城市区域格式已标准化: {region} -> {clean_region}")
                                          job_data['所属区域'] = clean_region
                                      else:
@@ -2012,11 +2023,24 @@ class Enhanced58JobScraper:
                                          print(f"× 所属区域格式不标准已清空: {region}")
                              else:
                                  clean_region = region_match.group(1)
-                                 # 检查是否为广东省，如果是则去掉区级信息
-                                 guangdong_match = re.search(r'广东省([\u4e00-\u9fa5]{2,4})市', clean_region)
-                                 if guangdong_match:
-                                     city_name = guangdong_match.group(1)
-                                     clean_region = f"广东省{city_name}市"
+                                 # 统一将所有区级信息简化为省市级别
+                                 province_city_match = re.search(r'([\u4e00-\u9fa5]{2,4})省([\u4e00-\u9fa5]{2,4})市', clean_region)
+                                 if province_city_match:
+                                     # 省市区格式，去掉区级信息
+                                     province_name = province_city_match.group(1)
+                                     city_name = province_city_match.group(2)
+                                     clean_region = f"{province_name}省{city_name}市"
+                                 else:
+                                     # 市区格式，需要根据城市映射到对应省份
+                                     city_district_match = re.search(r'([\u4e00-\u9fa5]{2,4})市[\u4e00-\u9fa5]{2,4}区', clean_region)
+                                     if city_district_match:
+                                         city_name = city_district_match.group(1)
+                                         # 使用城市到省份的映射
+                                         if city_name in city_to_province:
+                                             province_name = city_to_province[city_name]
+                                             clean_region = f"{province_name}省{city_name}市"
+                                         else:
+                                             clean_region = f"{city_name}市"
                                  # 确保长度合理
                                  if len(clean_region) <= 10:
                                      if clean_region != job_data['所属区域']:
@@ -2103,6 +2127,11 @@ class Enhanced58JobScraper:
             self.driver.quit()
 
 def main():
+    import time
+    start_time = time.time()  # 记录开始时间
+    print(f"\n=== 任务开始执行 ===")
+    print(f"开始时间: {time.strftime('%Y-%m-%d %H:%M:%S', time.localtime(start_time))}")
+    
     # 多个城市的URL列表（包含第一页和第二页）
     city_urls = {
         "北京": [
@@ -2179,6 +2208,19 @@ def main():
             
         else:
             print("所有城市都未抓取到任何职位数据")
+            
+        # 计算并打印任务统计信息
+        end_time = time.time()
+        total_time = end_time - start_time
+        total_jobs = len(all_data)
+        
+        print(f"\n=== 任务执行完成 ===")
+        print(f"结束时间: {time.strftime('%Y-%m-%d %H:%M:%S', time.localtime(end_time))}")
+        print(f"总执行时间: {total_time:.2f} 秒 ({total_time/60:.2f} 分钟)")
+        print(f"成功写入职位数据: {total_jobs} 行")
+        print(f"平均每个职位处理时间: {total_time/total_jobs:.2f} 秒" if total_jobs > 0 else "平均处理时间: 无数据")
+        print(f"数据文件: 58同城多城市职位详细信息.xlsx 和 58同城多城市职位详细信息.json")
+        print("=" * 50)
             
     except Exception as e:
         print(f"程序执行出错: {e}")
