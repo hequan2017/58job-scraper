@@ -129,8 +129,13 @@ class Enhanced58JobScraper:
             try:
                 print(f"\n尝试自动处理验证码 (第{attempt + 1}次)...")
                 
-                # 尝试查找并点击跳过按钮
+                # 尝试查找并点击跳过按钮或验证按钮
                 skip_buttons = [
+                    "//input[@id='btnSubmit']",  # 58同城验证码页面的特定按钮
+                    "//button[@id='btnSubmit']",
+                    "//input[@class='btn_tj']",
+                    "//button[@class='btn_tj']",
+                    "//input[@value='点击按钮进行验证']",
                     "//button[contains(text(), '跳过')]",
                     "//a[contains(text(), '跳过')]",
                     "//span[contains(text(), '跳过')]",
@@ -143,8 +148,21 @@ class Enhanced58JobScraper:
                     "//a[contains(text(), '返回')]",
                     "//button[contains(text(), '确定')]",
                     "//a[contains(text(), '确定')]",
+                    "//button[contains(text(), '点击按钮进行验证')]",
+                    "//a[contains(text(), '点击按钮进行验证')]",
+                    "//button[contains(text(), '进行验证')]",
+                    "//a[contains(text(), '进行验证')]",
+                    "//button[contains(text(), '验证')]",
+                    "//a[contains(text(), '验证')]",
+                    "//button[contains(@class, 'verify')]",
+                    "//a[contains(@class, 'verify')]",
+                    "//button[contains(@class, 'btn')]",
+                    "//a[contains(@class, 'btn')]",
                     "//input[@type='submit']",
-                    "//button[@type='submit']"
+                    "//button[@type='submit']",
+                    "//input[@type='button']",
+                    "//button",
+                    "//a[@href='javascript:;']"
                 ]
                 
                 button_found = False
@@ -613,8 +631,9 @@ class Enhanced58JobScraper:
                 title_element = soup.select_one(selector)
                 if title_element and title_element.get_text().strip():
                     title_text = title_element.get_text().strip()
-                    # 过滤掉包含推荐信息的文本
-                    if '您可能感兴趣' not in title_text and '推荐职位' not in title_text:
+                    # 过滤掉包含推荐信息和培训广告的文本
+                    if ('您可能感兴趣' not in title_text and '推荐职位' not in title_text and 
+                        '培训广告' not in title_text):
                         job_data["岗位名称"] = title_text
                         break
             
@@ -966,6 +985,11 @@ class Enhanced58JobScraper:
         except Exception as e:
             print(f"抓取职位详情页失败: {e}")
         
+        # 检查职位名称是否包含培训广告，如果包含则跳过该职位
+        if job_data["岗位名称"] and "培训广告" in job_data["岗位名称"]:
+            print(f"× 跳过培训广告职位: {job_data['岗位名称']}")
+            return None
+            
         # 如果找到了企业链接，抓取企业详细信息
         if company_url and job_data["企业名称"]:
             print(f"正在抓取企业详细信息: {job_data['企业名称']}")
