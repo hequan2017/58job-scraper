@@ -4,6 +4,24 @@
 
 **🎯 项目亮点**：已成功验证，单次运行38.53分钟抓取1105个有效职位，平均2.09秒/职位，数据完整性100%。
 
+## 📁 项目结构
+
+```
+58job-scraper/
+├── 58/                                    # 主要功能目录
+│   ├── enhanced_job_scraper.py           # 核心爬虫脚本
+│   ├── 58同城多城市职位详细信息.json      # JSON格式数据文件
+│   └── log/                              # 日志文件目录（运行时自动创建）
+├── other/                                # 辅助工具目录
+│   └── chromedriver-win32/               # ChromeDriver相关文件
+│       ├── LICENSE.chromedriver
+│       └── THIRD_PARTY_NOTICES.chromedriver
+├── school/                               # 预留目录（可用于学校相关数据）
+├── requirements.txt                      # Python依赖包列表
+├── .gitignore                           # Git忽略文件配置
+└── README.md                            # 项目说明文档
+```
+
 ## 🚀 功能特性
 
 ### 核心功能
@@ -319,7 +337,7 @@ openpyxl>=3.0.0
 ### 1. 克隆项目
 ```bash
 git clone <repository-url>
-cd 58同城抓取数据
+cd 58job-scraper
 ```
 
 ### 2. 创建虚拟环境
@@ -336,8 +354,11 @@ pip install -r requirements.txt
 
 ### 4. 运行脚本
 ```bash
+cd 58
 python enhanced_job_scraper.py
 ```
+
+**注意**：脚本需要在 `58/` 目录下运行，因为数据文件和日志文件会保存在该目录中。
 
 ## 📖 使用示例
 
@@ -396,9 +417,9 @@ python enhanced_job_scraper.py
 ## 📊 输出文件
 
 ### 主要输出
-- `58同城多城市职位详细信息.xlsx` - Excel格式的职位数据（实时更新，约430KB，包含1105条记录）
-- `58同城多城市职位详细信息.json` - JSON格式的职位数据备份（实时更新，约1.4MB）
-- `log/YYYYMMDD_HHMMSS.log` - 详细的运行日志文件（保存在log目录下）
+- `58/58同城多城市职位详细信息.xlsx` - Excel格式的职位数据（实时更新，约430KB，包含1105条记录）
+- `58/58同城多城市职位详细信息.json` - JSON格式的职位数据备份（实时更新，约1.4MB）
+- `58/log/YYYYMMDD_HHMMSS.log` - 详细的运行日志文件（保存在58/log目录下）
 
 ### 文件特点
 - **实时更新**：每抓取一个职位立即保存，确保数据不丢失
@@ -433,9 +454,8 @@ def setup_logging():
 - 数据保存操作记录
 
 ### 辅助工具
-- `other/clean_region_enhanced.py` - 数据清洗脚本
-- `other/data_comparison.py` - Excel与JSON数据一致性检查
-- `other/check_json_count.py` - 数据统计工具
+- `other/chromedriver-win32/` - ChromeDriver相关文件，用于浏览器自动化
+- 其他数据处理工具可根据需要添加到 `other/` 目录
 
 ### 数据文件结构
 
@@ -545,7 +565,7 @@ def save_single_job_to_excel(job_data):
 ## ⚙️ 配置选项
 
 ### 城市配置
-在`main()`函数中修改`city_urls`字典来添加或删除城市：
+在 `58/enhanced_job_scraper.py` 文件的 `main()` 函数中修改 `city_urls` 字典来添加或删除城市：
 ```python
 city_urls = {
     "北京": ["https://bj.58.com/hulianwangtx/"],
@@ -602,6 +622,11 @@ options.add_experimental_option('useAutomationExtension', False)  # 禁用自动
 - **错误恢复**：网络异常时自动重试，提高成功率
 
 ## 🚨 注意事项
+
+### 重要说明
+1. **运行目录**：必须在 `58/` 目录下运行脚本，否则可能导致文件路径错误
+2. **数据文件位置**：所有输出文件（Excel、JSON、日志）都会保存在 `58/` 目录下
+3. **日志目录**：首次运行时会自动创建 `58/log/` 目录用于保存日志文件
 
 ### 使用限制
 1. **遵守robots.txt**：请遵守网站的爬虫协议
