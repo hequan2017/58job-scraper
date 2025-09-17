@@ -33,7 +33,9 @@
 │   └── 📁 chromedriver-win32/           # ChromeDriver浏览器驱动
 │       ├── 📜 LICENSE.chromedriver      # ChromeDriver许可证
 │       └── 📜 THIRD_PARTY_NOTICES.chromedriver  # 第三方声明
-├── 📋 requirements.txt                  # Python项目依赖包清单
+├── 📋 requirements.txt                  # 完整功能依赖包清单（推荐）
+├── 📋 requirements-minimal.txt          # 核心必需依赖包清单（快速安装）
+├── 📋 requirements-dev.txt              # 开发环境工具依赖包清单
 ├── 🚫 .gitignore                        # Git版本控制忽略文件配置
 └── 📚 README.md                         # 项目完整说明文档（本文件）
 ```
@@ -155,9 +157,34 @@ source venv/bin/activate
 ```
 
 #### 3. 安装依赖
+
+根据您的需求选择合适的安装方式：
+
+**🚀 快速安装（推荐新手）**
 ```bash
+# 仅安装核心必需依赖，快速开始使用
+pip install -r requirements-minimal.txt
+```
+
+**📦 完整安装（推荐生产环境）**
+```bash
+# 安装所有功能依赖，包含性能优化和扩展功能
 pip install -r requirements.txt
 ```
+
+**🛠️ 开发环境安装**
+```bash
+# 先安装基础依赖
+pip install -r requirements.txt
+
+# 再安装开发工具（测试、代码检查、文档生成等）
+pip install -r requirements-dev.txt
+```
+
+**📋 依赖文件说明**
+- `requirements-minimal.txt`: 核心必需依赖（约10个包）
+- `requirements.txt`: 完整功能依赖（约20个包）
+- `requirements-dev.txt`: 开发环境工具（约15个包）
 
 #### 4. 下载ChromeDriver
 - 访问 [ChromeDriver官网](https://chromedriver.chromium.org/)
