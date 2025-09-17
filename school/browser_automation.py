@@ -245,20 +245,14 @@ class BrowserAutomation:
             
             # 多种选择器策略（按成功率排序，最有效的在前面）
             selectors = [
-                # 最成功的模式：使用OR逻辑检查a标签本身或内部div的文本
-                "//a[contains(text(), '查看更多') or .//div[contains(text(), '查看更多')]]",
-                # 针对带role属性的按钮，使用OR逻辑
-                "//a[@role='button' and (contains(text(), '查看更多') or .//div[contains(text(), '查看更多')])]",
-                # 针对带特定class的按钮，使用OR逻辑
-                "//a[contains(@class, 'l-button') and (contains(text(), '查看更多') or .//div[contains(text(), '查看更多')])]",
-                # 基于data-log-click属性，使用OR逻辑
-                "//a[contains(@data-log-click, 'more') and (contains(text(), '查看更多') or .//div[contains(text(), '查看更多')])]",
-                # 更具体的div结构匹配
-                "//a[.//div[contains(@class, 'truncate') and contains(text(), '查看更多')]]",
-                # 基于href属性的匹配，使用OR逻辑
-                "//a[contains(@href, 'magic_frame') and (contains(text(), '查看更多') or .//div[contains(text(), '查看更多')])]",
-                # 最宽泛的查找：任何包含"查看更多"的a标签
-                "//a[contains(text(), '查看更多')]"
+                # 根据实际HTML结构：匹配具有特定class组合的a标签
+                "//a[contains(@class, 'l-button') and contains(@class, 'bg-button') and .//div[contains(@class, 'truncate') and contains(text(), '查看更多')]]",
+                # 匹配data-log-click包含pos的a标签（处理HTML编码）
+                "//a[contains(@data-log-click, 'pos') and .//div[contains(text(), '查看更多')]]",
+                # 匹配l-button类的a标签
+                "//a[contains(@class, 'l-button') and .//div[contains(@class, 'truncate') and contains(text(), '查看更多')]]",
+                # 通用备用选择器
+                "//a[.//div[contains(@class, 'truncate') and contains(text(), '查看更多')]]"
             ]
             
             element = None
@@ -281,36 +275,8 @@ class BrowserAutomation:
                     continue
             
             if element is None:
-                # 如果上述方法都失败，尝试查找所有包含"查看更多"文本的a标签
-                print("🔄 尝试备用查找方法...")
-                elements = self.driver.find_elements(By.XPATH, "//a[contains(text(), '查看更多') or .//div[contains(text(), '查看更多')]]")
-                
-                if elements:
-                    element = elements[0]
-                    print("✅ 使用备用方法找到'查看更多'按钮")
-                else:
-                    # 最后的备用方法：使用JavaScript查找
-                    print("🔄 尝试JavaScript备用方法...")
-                    try:
-                        js_script = """
-                        var links = document.querySelectorAll('a');
-                        for (var i = 0; i < links.length; i++) {
-                            var link = links[i];
-                            if (link.textContent.includes('查看更多') || 
-                                (link.querySelector('div') && link.querySelector('div').textContent.includes('查看更多'))) {
-                                return link;
-                            }
-                        }
-                        return null;
-                        """
-                        element = self.driver.execute_script(js_script)
-                        if element:
-                            print("✅ 使用JavaScript方法找到'查看更多'按钮")
-                        else:
-                            raise Exception("未找到'查看更多'按钮")
-                    except Exception as js_e:
-                        print(f"❌ JavaScript方法也失败: {js_e}")
-                        raise Exception("所有方法都无法找到'查看更多'按钮")
+                print("❌ 所有选择器都无法找到'查看更多'按钮")
+                raise Exception("无法找到'查看更多'按钮，请检查页面结构")
             
             # 滚动到元素位置
             self.driver.execute_script("arguments[0].scrollIntoView(true);", element)
