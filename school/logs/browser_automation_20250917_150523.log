@@ -1,0 +1,6 @@
+2025-09-17 15:05:23,119 - INFO - 📝 日志文件: E:\360WiFi\58job-scraper\school\logs\browser_automation_20250917_150523.log
+2025-09-17 15:05:23,119 - INFO - 📚 成功读取 142 所学校
+2025-09-17 15:05:23,120 - INFO - 🔧 使用ChromeDriver路径: E:\360WiFi\58job-scraper\other\chromedriver-win32\chromedriver.exe
+2025-09-17 15:05:24,432 - INFO - ✅ Chrome浏览器驱动设置成功（已禁用图片和视频加载）
+2025-09-17 15:05:24,433 - INFO - 🌐 正在访问页面: https://tsearch.toutiaoapi.com/search?keyword=%E5%9B%9B%E5%B7%9D%E5%A4%A7%E5%AD%A6
+2025-09-17 15:05:30,325 - INFO - ✅ 页面访问成功

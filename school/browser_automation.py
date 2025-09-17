@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 """
-宜宾职业技术学院信息自动化脚本
+信息自动化脚本
 使用Selenium自动化浏览器访问指定页面并点击专业设置
 """
 
@@ -10,6 +10,8 @@ import sys
 import time
 import logging
 import re
+import urllib.parse
+import argparse
 from datetime import datetime
 from selenium import webdriver
 from selenium.webdriver.common.by import By
@@ -58,10 +60,11 @@ def log_print(message):
 class BrowserAutomation:
     """浏览器自动化类"""
     
-    def __init__(self):
+    def __init__(self, school_name="宜宾职业技术学院"):
         """初始化浏览器配置"""
         self.driver = None
         self.wait = None
+        self.school_name = school_name
         
     def setup_driver(self):
         """设置Chrome浏览器驱动"""
@@ -126,38 +129,38 @@ class BrowserAutomation:
             # 创建Service并屏蔽日志
             service = Service(chromedriver_path, log_path='NUL')  # Windows下使用NUL屏蔽日志
             
-            log_print(f"🔧 使用ChromeDriver路径: {chromedriver_path}")
+            print(f"🔧 使用ChromeDriver路径: {chromedriver_path}")
             
             # 创建WebDriver实例
             self.driver = webdriver.Chrome(service=service, options=chrome_options)
             
-            # 隐藏webdriver属性
+            # 执行脚本来隐藏webdriver属性
             self.driver.execute_script("Object.defineProperty(navigator, 'webdriver', {get: () => undefined})")
             
             # 设置等待对象
             self.wait = WebDriverWait(self.driver, 10)
             
-            log_print("✅ Chrome浏览器驱动设置成功（已禁用图片和视频加载）")
+            print("✅ Chrome浏览器驱动设置成功（已禁用图片和视频加载）")
             return True
             
         except Exception as e:
-            log_print(f"❌ 设置浏览器驱动失败: {e}")
+            print(f"❌ 设置浏览器驱动失败: {e}")
             return False
     
     def visit_page(self, url):
         """访问指定页面"""
         try:
-            log_print(f"🌐 正在访问页面: {url}")
+            print(f"🌐 正在访问页面: {url}")
             self.driver.get(url)
             
             # 等待页面加载
-            time.sleep(3)
+            time.sleep(1)
             
-            log_print("✅ 页面访问成功")
+            print("✅ 页面访问成功")
             return True
             
         except Exception as e:
-            log_print(f"❌ 访问页面失败: {e}")
+            print(f"❌ 访问页面失败: {e}")
             return False
     
     def click_major_settings(self):
@@ -242,12 +245,20 @@ class BrowserAutomation:
             
             # 多种选择器策略（按成功率排序，最有效的在前面）
             selectors = [
-                # 根据div内容查找父级a标签（最有效的选择器）
-                "//a[.//div[contains(text(), '查看更多')]]",
-                # 更宽泛的查找
-                "//a[contains(text(), '查看更多')]",
-                "//a[contains(@role, 'button') and contains(text(), '查看更多')]",
-                "//a[contains(@href, 'magic_frame') and contains(text(), '查看更多')]"
+                # 最成功的模式：使用OR逻辑检查a标签本身或内部div的文本
+                "//a[contains(text(), '查看更多') or .//div[contains(text(), '查看更多')]]",
+                # 针对带role属性的按钮，使用OR逻辑
+                "//a[@role='button' and (contains(text(), '查看更多') or .//div[contains(text(), '查看更多')])]",
+                # 针对带特定class的按钮，使用OR逻辑
+                "//a[contains(@class, 'l-button') and (contains(text(), '查看更多') or .//div[contains(text(), '查看更多')])]",
+                # 基于data-log-click属性，使用OR逻辑
+                "//a[contains(@data-log-click, 'more') and (contains(text(), '查看更多') or .//div[contains(text(), '查看更多')])]",
+                # 更具体的div结构匹配
+                "//a[.//div[contains(@class, 'truncate') and contains(text(), '查看更多')]]",
+                # 基于href属性的匹配，使用OR逻辑
+                "//a[contains(@href, 'magic_frame') and (contains(text(), '查看更多') or .//div[contains(text(), '查看更多')])]",
+                # 最宽泛的查找：任何包含"查看更多"的a标签
+                "//a[contains(text(), '查看更多')]"
             ]
             
             element = None
@@ -258,13 +269,15 @@ class BrowserAutomation:
             # 尝试不同的选择器（现在都是XPath选择器）
             for i, selector in enumerate(selectors):
                 try:
+                    print(f"🔍 尝试选择器 {i+1}: {selector}")
                     element = self.wait.until(
                         EC.element_to_be_clickable((By.XPATH, selector))
                     )
                     print(f"✅ 使用选择器 {i+1} 找到'查看更多'按钮")
                     break
                     
-                except Exception:
+                except Exception as e:
+                    print(f"❌ 选择器 {i+1} 失败: {str(e)[:100]}")
                     continue
             
             if element is None:
@@ -276,7 +289,28 @@ class BrowserAutomation:
                     element = elements[0]
                     print("✅ 使用备用方法找到'查看更多'按钮")
                 else:
-                    raise Exception("未找到'查看更多'按钮")
+                    # 最后的备用方法：使用JavaScript查找
+                    print("🔄 尝试JavaScript备用方法...")
+                    try:
+                        js_script = """
+                        var links = document.querySelectorAll('a');
+                        for (var i = 0; i < links.length; i++) {
+                            var link = links[i];
+                            if (link.textContent.includes('查看更多') || 
+                                (link.querySelector('div') && link.querySelector('div').textContent.includes('查看更多'))) {
+                                return link;
+                            }
+                        }
+                        return null;
+                        """
+                        element = self.driver.execute_script(js_script)
+                        if element:
+                            print("✅ 使用JavaScript方法找到'查看更多'按钮")
+                        else:
+                            raise Exception("未找到'查看更多'按钮")
+                    except Exception as js_e:
+                        print(f"❌ JavaScript方法也失败: {js_e}")
+                        raise Exception("所有方法都无法找到'查看更多'按钮")
             
             # 滚动到元素位置
             self.driver.execute_script("arguments[0].scrollIntoView(true);", element)
@@ -287,11 +321,20 @@ class BrowserAutomation:
             print(f"📋 找到的链接: {href[:100]}..." if href and len(href) > 100 else f"📋 找到的链接: {href}")
             
             # 点击元素
-            element.click()
-            print("✅ 成功点击'查看更多'按钮")
+            try:
+                element.click()
+                print("✅ 成功点击'查看更多'按钮")
+            except Exception as click_e:
+                print(f"⚠️ 普通点击失败，尝试JavaScript点击: {click_e}")
+                try:
+                    self.driver.execute_script("arguments[0].click();", element)
+                    print("✅ JavaScript点击成功")
+                except Exception as js_click_e:
+                    print(f"❌ JavaScript点击也失败: {js_click_e}")
+                    raise Exception("无法点击'查看更多'按钮")
             
             # 等待页面响应
-            time.sleep(1)
+            time.sleep(2)
             
             return True
             
@@ -372,7 +415,7 @@ class BrowserAutomation:
                 
                 
                 # 从URL或页面标题中提取学校名称
-                school_name = "宜宾职业技术学院"  # 根据搜索关键词确定
+                school_name = self.school_name  # 使用传入的学校名称
                 
                 # 优先显示计算机相关专业，然后是其他专业
                 priority_majors = []
@@ -406,7 +449,8 @@ class BrowserAutomation:
             print("🔄 重新访问头条搜索页面...")
             
             # 访问头条搜索页面
-            toutiao_url = "https://tsearch.toutiaoapi.com/search?keyword=%E5%AE%9C%E5%AE%BE%E8%81%8C%E4%B8%9A%E6%8A%80%E6%9C%AF%E5%AD%A6%E9%99%A2"
+            encoded_school_name = urllib.parse.quote(self.school_name)
+            toutiao_url = f"https://tsearch.toutiaoapi.com/search?keyword={encoded_school_name}"
             if not self.visit_page(toutiao_url):
                 return False
             
@@ -447,8 +491,8 @@ class BrowserAutomation:
                                 print(f"📋 检查元素: {elem_text[:100]}...")
                                 print(f"📋 链接: {elem_href[:100]}..." if elem_href else "📋 链接: 无")
                                 
-                                # 检查是否包含宜宾职业技术学院信息和百科标签
-                                if ("宜宾职业技术学院" in elem_text and "百科" in elem_text) or \
+                                # 检查是否包含学校信息和百科标签
+                                if (self.school_name in elem_text and "百科" in elem_text) or \
                                    (elem_href and "/search/jump" in elem_href and "百科" in elem_text):
                                     element = elem
                                     print(f"✅ 使用选择器 {i+1} 找到匹配的百科链接")
@@ -468,7 +512,7 @@ class BrowserAutomation:
                 try:
                     all_links = self.driver.find_elements(By.XPATH, "//a[contains(., '百科')]")
                     for link in all_links:
-                        if "宜宾职业技术学院" in link.text:
+                        if self.school_name in link.text:
                             element = link
                             print("✅ 使用备用方法找到百科链接")
                             break
@@ -633,7 +677,8 @@ class BrowserAutomation:
     
     def run(self):
         """主运行方法"""
-        target_url = "https://tsearch.toutiaoapi.com/search?keyword=%E5%AE%9C%E5%AE%BE%E8%81%8C%E4%B8%9A%E6%8A%80%E6%9C%AF%E5%AD%A6%E9%99%A2"
+        encoded_school_name = urllib.parse.quote(self.school_name)
+        target_url = f"https://tsearch.toutiaoapi.com/search?keyword={encoded_school_name}"
         
         print("🚀 开始执行浏览器自动化任务...")
         print("=" * 50)
@@ -695,7 +740,7 @@ class BrowserAutomation:
                 else:
                     print("⚠️ 未能获取到学生人数信息")
             elif student_count:
-                print(f"学校：宜宾职业技术学院, 学生人数：{student_count}")
+                print(f"学校：{self.school_name}, 学生人数：{student_count}")
             else:
                 print("⚠️ 未能获取到完整的学校信息")
             
@@ -727,19 +772,19 @@ class BrowserAutomation:
 
 def main():
     """主函数"""
-    # 初始化日志配置
-    log_file = setup_logging()
-    log_print(f"📝 日志文件已创建: {log_file}")
-    log_print("🚀 开始执行浏览器自动化脚本")
+    parser = argparse.ArgumentParser(description='学校信息自动化脚本')
+    parser.add_argument('--school', '-s', default='宜宾职业技术学院', help='学校名称 (默认: 宜宾职业技术学院)')
+    args = parser.parse_args()
     
-    automation = BrowserAutomation()
+    print(f"🎯 目标学校: {args.school}")
+    automation = BrowserAutomation(school_name=args.school)
     success = automation.run()
     
     if success:
-        log_print("\n✅ 脚本执行完成")
+        print("\n✅ 脚本执行完成")
         sys.exit(0)
     else:
-        log_print("\n❌ 脚本执行失败")
+        print("\n❌ 脚本执行失败")
         sys.exit(1)
 
 
