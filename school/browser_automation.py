@@ -243,22 +243,22 @@ class BrowserAutomation:
         try:
             print("🔍 正在查找'查看更多'按钮...")
             
-            # 多种选择器策略（按成功率排序，最有效的在前面）
+            # 多种选择器策略
             selectors = [
-                # 根据实际HTML结构：匹配具有特定class组合的a标签
-                "//a[contains(@class, 'l-button') and contains(@class, 'bg-button') and .//div[contains(@class, 'truncate') and contains(text(), '查看更多')]]",
-                # 匹配"注：表格可支持左滑查看更多信息"前面的"查看更多"按钮
-                "//a[contains(text(), '查看更多')][following-sibling::*[contains(text(), '注：表格可支持左滑查看更多信息')]]",
-                # 匹配紧邻"注：表格可支持左滑查看更多信息"前面的"查看更多"
-                "//a[.//div[contains(text(), '查看更多')]][following-sibling::div[contains(text(), '注：表格可支持左滑查看更多信息')]]",
-                # 通过父元素定位：查找包含"查看更多"和"注：表格可支持左滑查看更多信息"的共同父元素下的"查看更多"
-                "//*[contains(text(), '注：表格可支持左滑查看更多信息')]/preceding-sibling::*//a[contains(text(), '查看更多')]",
-                # 通过相对位置：查找"注：表格可支持左滑查看更多信息"前面的"查看更多"链接
-                "//div[contains(text(), '注：表格可支持左滑查看更多信息')]/preceding::a[contains(text(), '查看更多')][1]",
-                # 匹配包含"查看更多"的div，且其后有"注：表格可支持左滑查看更多信息"
-                "//a[.//div[contains(text(), '查看更多')]][following::*[contains(text(), '注：表格可支持左滑查看更多信息')]]",
-                # 通用备用选择器：在同一容器内查找"查看更多"和"注：表格可支持左滑查看更多信息"
-                "//*[contains(text(), '注：表格可支持左滑查看更多信息')]/ancestor::*[1]//a[contains(text(), '查看更多')]"
+                # 精确匹配：查找文本为"查看更多"且class包含"truncate block"的div
+                "//div[text()='查看更多' and contains(@class, 'truncate') and contains(@class, 'block')]",
+                # 查找包含"查看更多"文本的div元素
+                "//div[text()='查看更多']",
+                # 查找包含"查看更多"的div且class包含truncate
+                "//div[contains(text(), '查看更多') and contains(@class, 'truncate')]",
+                # 查找包含"查看更多"的div且class包含block
+                "//div[contains(text(), '查看更多') and contains(@class, 'block')]",
+                # 查找包含"查看更多"文本的任何元素
+                "//*[contains(text(), '查看更多')]",
+                # 查找包含"查看更多"的元素的祖先a标签
+                "//*[contains(text(), '查看更多')]/ancestor::a",
+                # 查找包含"查看更多"的元素本身如果是a标签
+                "//a[contains(text(), '查看更多')]"
             ]
             
             element = None
@@ -266,43 +266,41 @@ class BrowserAutomation:
             # 等待页面加载完成
             time.sleep(1)
             
-            # 尝试不同的选择器（现在都是XPath选择器）
+            # 尝试不同的选择器
             for i, selector in enumerate(selectors):
                 try:
-                    print(f"🔍 尝试选择器 {i+1}: {selector}")
-                    element = self.wait.until(
-                        EC.element_to_be_clickable((By.XPATH, selector))
-                    )
-                    print(f"✅ 使用选择器 {i+1} 找到'查看更多'按钮")
-                    break
+                    # 先尝试找到元素
+                    elements = self.driver.find_elements(By.XPATH, selector)
+                    if elements:
+                        # 找到元素，检查是否可见和可点击
+                        for elem in elements:
+                            if elem.is_displayed() and elem.is_enabled():
+                                element = elem
+                                print(f"✅ 使用选择器 {i+1} 找到'查看更多'按钮")
+                                break
+                        if element:
+                            break
                     
                 except Exception as e:
-                    print(f"❌ 选择器 {i+1} 失败: {str(e)[:100]}")
                     continue
             
             if element is None:
-                print("❌ 所有选择器都无法找到'查看更多'按钮")
+                print("❌ 无法找到'查看更多'按钮")
                 raise Exception("无法找到'查看更多'按钮，请检查页面结构")
             
             # 滚动到元素位置
             self.driver.execute_script("arguments[0].scrollIntoView(true);", element)
             time.sleep(1)
             
-            # 获取元素的href属性用于验证
-            href = element.get_attribute('href')
-            print(f"📋 找到的链接: {href[:100]}..." if href and len(href) > 100 else f"📋 找到的链接: {href}")
-            
             # 点击元素
             try:
                 element.click()
                 print("✅ 成功点击'查看更多'按钮")
             except Exception as click_e:
-                print(f"⚠️ 普通点击失败，尝试JavaScript点击: {click_e}")
                 try:
                     self.driver.execute_script("arguments[0].click();", element)
                     print("✅ JavaScript点击成功")
                 except Exception as js_click_e:
-                    print(f"❌ JavaScript点击也失败: {js_click_e}")
                     raise Exception("无法点击'查看更多'按钮")
             
             # 等待页面响应
@@ -454,28 +452,23 @@ class BrowserAutomation:
                 try:
                     elements = self.driver.find_elements(By.XPATH, selector)
                     if elements:
-                        print(f"🔍 选择器 {i+1} 找到 {len(elements)} 个候选元素")
-                        # 查找包含宜宾职业技术学院信息的百科链接
+                        # 查找包含学校信息的百科链接
                         for elem in elements:
                             try:
                                 elem_text = elem.text
                                 elem_href = elem.get_attribute('href')
-                                print(f"📋 检查元素: {elem_text[:100]}...")
-                                print(f"📋 链接: {elem_href[:100]}..." if elem_href else "📋 链接: 无")
                                 
                                 # 检查是否包含学校信息和百科标签
                                 if (self.school_name in elem_text and "百科" in elem_text) or \
                                    (elem_href and "/search/jump" in elem_href and "百科" in elem_text):
                                     element = elem
-                                    print(f"✅ 使用选择器 {i+1} 找到匹配的百科链接")
+                                    print(f"✅ 找到匹配的百科链接")
                                     break
                             except Exception as e:
-                                print(f"⚠️ 检查元素时出错: {e}")
                                 continue
                         if element:
                             break
                 except Exception as e:
-                    print(f"⚠️ 选择器 {i+1} 执行失败: {e}")
                     continue
             
             if element is None:
@@ -513,7 +506,6 @@ class BrowserAutomation:
             
             # 获取元素的href属性用于验证
             href = element.get_attribute('href')
-            print(f"📋 找到的百科链接: {href[:100]}..." if href and len(href) > 100 else f"📋 找到的百科链接: {href}")
             
             # 点击百科链接
             element.click()
@@ -548,7 +540,7 @@ class BrowserAutomation:
             # 等待页面完全加载
             time.sleep(3)
             
-            # 根据提供的HTML结构查找学生人数
+            # 根据提供的HTML结构查找学生人数信息
             selectors = [
                 # 精确匹配提供的结构
                 "//div[@class='container-ID5WgR notNodeView infoboxItem-zje7Gr preview-IM494y']//div[@data-infobox-label='学生人数']//div[@class='content-joo5TV preview-u2fsKV rt-editor-wrapper']//p",
@@ -558,6 +550,8 @@ class BrowserAutomation:
                 "//div[contains(@data-infobox-label, '学生人数')]//p",
                 # 查找包含学生人数文本的元素
                 "//div[contains(text(), '学生人数')]/following-sibling::div//p",
+                # 查找包含"在校学生"的元素
+                "//p[contains(text(), '在校学生')]",
                 # 备用：查找包含"人"和数字的文本
                 "//p[contains(text(), '人') and (contains(text(), '000') or contains(text(), '万'))]"
             ]
@@ -568,68 +562,65 @@ class BrowserAutomation:
                 try:
                     elements = self.driver.find_elements(By.XPATH, selector)
                     if elements:
-                        print(f"🔍 选择器 {i+1} 找到 {len(elements)} 个候选元素")
                         for elem in elements:
                             try:
                                 text = elem.text.strip()
-                                print(f"📋 检查文本: {text}")
                                 
                                 # 检查是否包含学生人数信息
-                                if text and ("人" in text and any(char.isdigit() for char in text)):
-                                    # 提取数字和相关信息
-                                    if "余人" in text or "万人" in text or "000" in text:
+                                if text and any(char.isdigit() for char in text):
+                                    # 检查是否包含关键词：在校学生、学生人数、或包含人数的描述
+                                    if any(keyword in text for keyword in ["在校学生", "学生人数", "余人", "万人", "000人"]):
                                         student_count = text
-                                        print(f"✅ 使用选择器 {i+1} 找到学生人数: {student_count}")
+                                        print(f"✅ 找到学生人数: {student_count}")
                                         break
                             except Exception as e:
-                                print(f"⚠️ 检查元素文本时出错: {e}")
                                 continue
                         if student_count:
                             break
                 except Exception as e:
-                    print(f"⚠️ 选择器 {i+1} 执行失败: {e}")
                     continue
             
             if student_count is None:
                 print("🔄 尝试备用查找方法...")
                 try:
-                    # 查找页面中所有包含"学生人数"的文本
+                    # 查找页面中所有包含"学生人数"或"在校学生"的文本
                     page_source = self.driver.page_source
-                    if "学生人数" in page_source:
-                        # 使用正则表达式提取学生人数
+                    if "学生人数" in page_source or "在校学生" in page_source:
+                        # 使用正则表达式提取完整的学生人数信息
                         import re
-                        pattern = r'学生人数[^>]*>([^<]*\d+[^<]*人[^<]*)'
+                        # 匹配包含"学生人数"的完整字段
+                        pattern = r'学生人数[^>]*>([^<]*\d+[^<]*)'
                         matches = re.findall(pattern, page_source)
                         if matches:
                             student_count = matches[0].strip()
                             print(f"✅ 使用正则表达式找到学生人数: {student_count}")
                         else:
-                            # 更宽泛的搜索
-                            pattern = r'(\d+[万千百十]?余?人)'
+                            # 匹配包含"在校学生"的完整字段
+                            pattern = r'在校学生[^>]*>([^<]*\d+[^<]*)'
                             matches = re.findall(pattern, page_source)
                             if matches:
-                                # 查找最可能的学生人数（通常是较大的数字）
-                                for match in matches:
-                                    if any(keyword in match for keyword in ['万', '000', '余']):
-                                        student_count = match
-                                        print(f"✅ 使用备用正则表达式找到学生人数: {student_count}")
-                                        break
+                                student_count = matches[0].strip()
+                                print(f"✅ 使用正则表达式找到在校学生信息: {student_count}")
+                            else:
+                                # 更宽泛的搜索，查找包含数字和人数描述的完整文本
+                                pattern = r'([^<>]*(?:在校学生|学生人数|学生)[^<>]*\d+[^<>]*人[^<>]*)'
+                                matches = re.findall(pattern, page_source)
+                                if matches:
+                                    # 选择最完整的描述
+                                    for match in matches:
+                                        if any(keyword in match for keyword in ['万', '000', '余', '在校学生', '学生人数']):
+                                            student_count = match.strip()
+                                            print(f"✅ 使用备用正则表达式找到学生信息: {student_count}")
+                                            break
                 except Exception as e:
                     print(f"⚠️ 备用查找方法失败: {e}")
             
             if student_count:
-                # 提取数字部分
+                # 清理引用标记，如 [1], [2], [3] 等
                 import re
-                numbers = re.findall(r'\d+', student_count)
-                if numbers:
-                    # 取第一个数字（通常是主要的学生人数）
-                    numeric_count = numbers[0]
-                    print(f"📊 成功提取学生人数: {student_count}")
-                    print(f"📊 数字格式学生人数: {numeric_count}")
-                    return numeric_count
-                else:
-                    print(f"📊 找到学生人数文本但无法提取数字: {student_count}")
-                    return None
+                cleaned_student_count = re.sub(r'\[\d+\]', '', student_count).strip()
+                print(f"📊 成功提取学生信息: {cleaned_student_count}")
+                return cleaned_student_count
             else:
                 print("❌ 未找到学生人数信息")
                 return None
