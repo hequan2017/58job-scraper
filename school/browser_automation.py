@@ -247,12 +247,18 @@ class BrowserAutomation:
             selectors = [
                 # 根据实际HTML结构：匹配具有特定class组合的a标签
                 "//a[contains(@class, 'l-button') and contains(@class, 'bg-button') and .//div[contains(@class, 'truncate') and contains(text(), '查看更多')]]",
-                # 匹配data-log-click包含pos的a标签（处理HTML编码）
-                "//a[contains(@data-log-click, 'pos') and .//div[contains(text(), '查看更多')]]",
-                # 匹配l-button类的a标签
-                "//a[contains(@class, 'l-button') and .//div[contains(@class, 'truncate') and contains(text(), '查看更多')]]",
-                # 通用备用选择器
-                "//a[.//div[contains(@class, 'truncate') and contains(text(), '查看更多')]]"
+                # 匹配"注：表格可支持左滑查看更多信息"前面的"查看更多"按钮
+                "//a[contains(text(), '查看更多')][following-sibling::*[contains(text(), '注：表格可支持左滑查看更多信息')]]",
+                # 匹配紧邻"注：表格可支持左滑查看更多信息"前面的"查看更多"
+                "//a[.//div[contains(text(), '查看更多')]][following-sibling::div[contains(text(), '注：表格可支持左滑查看更多信息')]]",
+                # 通过父元素定位：查找包含"查看更多"和"注：表格可支持左滑查看更多信息"的共同父元素下的"查看更多"
+                "//*[contains(text(), '注：表格可支持左滑查看更多信息')]/preceding-sibling::*//a[contains(text(), '查看更多')]",
+                # 通过相对位置：查找"注：表格可支持左滑查看更多信息"前面的"查看更多"链接
+                "//div[contains(text(), '注：表格可支持左滑查看更多信息')]/preceding::a[contains(text(), '查看更多')][1]",
+                # 匹配包含"查看更多"的div，且其后有"注：表格可支持左滑查看更多信息"
+                "//a[.//div[contains(text(), '查看更多')]][following::*[contains(text(), '注：表格可支持左滑查看更多信息')]]",
+                # 通用备用选择器：在同一容器内查找"查看更多"和"注：表格可支持左滑查看更多信息"
+                "//*[contains(text(), '注：表格可支持左滑查看更多信息')]/ancestor::*[1]//a[contains(text(), '查看更多')]"
             ]
             
             element = None
