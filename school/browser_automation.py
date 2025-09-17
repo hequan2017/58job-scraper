@@ -126,38 +126,38 @@ class BrowserAutomation:
             # 创建Service并屏蔽日志
             service = Service(chromedriver_path, log_path='NUL')  # Windows下使用NUL屏蔽日志
             
-            print(f"🔧 使用ChromeDriver路径: {chromedriver_path}")
+            log_print(f"🔧 使用ChromeDriver路径: {chromedriver_path}")
             
             # 创建WebDriver实例
             self.driver = webdriver.Chrome(service=service, options=chrome_options)
             
-            # 执行脚本来隐藏webdriver属性
+            # 隐藏webdriver属性
             self.driver.execute_script("Object.defineProperty(navigator, 'webdriver', {get: () => undefined})")
             
             # 设置等待对象
             self.wait = WebDriverWait(self.driver, 10)
             
-            print("✅ Chrome浏览器驱动设置成功（已禁用图片和视频加载）")
+            log_print("✅ Chrome浏览器驱动设置成功（已禁用图片和视频加载）")
             return True
             
         except Exception as e:
-            print(f"❌ 设置浏览器驱动失败: {e}")
+            log_print(f"❌ 设置浏览器驱动失败: {e}")
             return False
     
     def visit_page(self, url):
         """访问指定页面"""
         try:
-            print(f"🌐 正在访问页面: {url}")
+            log_print(f"🌐 正在访问页面: {url}")
             self.driver.get(url)
             
             # 等待页面加载
-            time.sleep(1)
+            time.sleep(3)
             
-            print("✅ 页面访问成功")
+            log_print("✅ 页面访问成功")
             return True
             
         except Exception as e:
-            print(f"❌ 访问页面失败: {e}")
+            log_print(f"❌ 访问页面失败: {e}")
             return False
     
     def click_major_settings(self):
