@@ -2,7 +2,7 @@
 
 一个功能强大的58同城招聘信息爬虫工具，支持多城市、多页面批量抓取，具备智能数据清洗和实时保存功能。
 
-**🎯 项目亮点**：已成功验证，单次运行38.53分钟抓取1105个有效职位，平均2.09秒/职位，数据完整性100%。
+**🎯 项目亮点**：已成功验证，单次运行38.53分钟抓取1105个有效职位，平均2.09秒/职位，数据完整性100%。支持142所四川省高校信息采集，智能处理学校专业设置和百科信息。
 
 ## 📁 项目结构
 
@@ -45,6 +45,104 @@
 - **灵活配置**：支持自定义学校列表和采集参数
 - **浏览器管理**：自动管理Chrome浏览器实例，支持无头模式运行
 
+## 🛠️ 安装与配置
+
+### 系统要求
+
+#### 基础环境
+- **Python版本**: Python 3.7 或更高版本（推荐 Python 3.9+）
+- **操作系统**: 
+  - Windows 10/11 (x64)
+  - macOS 10.14+ (Intel/Apple Silicon)
+  - Ubuntu 18.04+ / CentOS 7+ / Debian 10+
+- **内存要求**: 至少 4GB RAM（推荐 8GB，大批量采集建议 16GB）
+- **磁盘空间**: 至少 1GB 可用空间（日志和数据文件）
+- **网络要求**: 稳定的互联网连接（建议 10Mbps+）
+
+#### 浏览器要求
+- **Google Chrome**: 版本 90.0 或更高
+- **ChromeDriver**: 与Chrome版本匹配的驱动程序
+
+### 核心依赖包
+
+#### 必需依赖
+```
+selenium>=4.15.0          # 浏览器自动化框架
+beautifulsoup4>=4.12.0    # HTML解析库
+requests>=2.31.0          # HTTP请求库
+webdriver-manager>=4.0.0  # WebDriver管理工具
+pandas>=2.0.0             # 数据处理和分析
+numpy>=1.24.0             # 数值计算库
+openpyxl>=3.1.0           # Excel文件处理
+lxml>=4.9.0               # XML/HTML解析器
+```
+
+#### 可选依赖
+```
+tqdm>=4.66.0              # 进度条显示
+pyyaml>=6.0.0             # YAML配置文件支持
+coloredlogs>=15.0.0       # 彩色日志输出
+chardet>=5.2.0            # 字符编码检测
+urllib3>=2.0.0            # HTTP库
+certifi>=2023.7.22        # SSL证书验证
+```
+
+### 快速安装
+
+#### 1. 克隆项目
+```bash
+git clone https://github.com/your-username/58job-scraper.git
+cd 58job-scraper
+```
+
+#### 2. 创建虚拟环境（推荐）
+```bash
+# Windows
+python -m venv venv
+venv\Scripts\activate
+
+# macOS/Linux
+python3 -m venv venv
+source venv/bin/activate
+```
+
+#### 3. 安装依赖
+```bash
+pip install -r requirements.txt
+```
+
+#### 4. 下载ChromeDriver
+- 访问 [ChromeDriver官网](https://chromedriver.chromium.org/)
+- 下载与您的Chrome浏览器版本匹配的ChromeDriver
+- 将ChromeDriver放置在 `other/chromedriver-win32/` 目录下
+- 或者将ChromeDriver添加到系统PATH环境变量中
+
+#### 5. 验证安装
+```bash
+# 测试58同城爬虫
+cd 58
+python enhanced_job_scraper.py --test
+
+# 测试学校信息采集
+cd school
+python browser_automation.py --school "测试学校" --test
+```
+
+### 详细配置
+
+#### Chrome浏览器配置
+确保您的系统已安装Chrome浏览器，并且版本不低于90.0。如果需要使用无头模式，请确保系统支持虚拟显示。
+
+#### 网络代理配置（可选）
+如果您的网络环境需要代理，可以在脚本中配置：
+```python
+# 在browser_automation.py中添加代理设置
+chrome_options.add_argument('--proxy-server=http://proxy-server:port')
+```
+
+#### 日志配置
+默认情况下，所有日志文件保存在各自的 `logs/` 目录下。您可以通过修改日志级别来控制输出详细程度。
+
 ## 📖 使用说明
 
 ### 58同城招聘信息爬虫使用
@@ -61,7 +159,10 @@ python enhanced_job_scraper.py
 # 进入学校信息采集目录
 cd school
 
-# 运行自动化脚本
+# 运行自动化脚本 - 采集指定学校
+python browser_automation.py --school 四川大学
+
+# 或者批量采集所有学校（从学校.txt文件读取）
 python browser_automation.py
 ```
 
@@ -71,14 +172,155 @@ python browser_automation.py
 - 每个学校的采集过程包括：
   1. 访问学校官网
   2. 查找并点击"专业设置"相关链接
-  3. 提取专业信息
+  3. 提取专业信息列表
   4. 访问头条百科获取学校详细信息
+  5. 提取学生人数等统计信息
 - 所有操作日志保存在 `logs/` 目录下
 - 支持断点续传，遇到错误会自动重试
+- 智能去除引用标记（如[1]、[2]等）
+- 返回完整的字段信息而非仅数字
+
+## ⚙️ 配置说明
+
+### 58同城爬虫配置
+
+#### 基础配置参数
+```python
+# enhanced_job_scraper.py 中的主要配置项
+CITIES = ['北京', '上海', '广州', '深圳', '成都', '西安', '郑州']  # 目标城市
+MAX_PAGES = 5                    # 每个城市抓取页数
+DELAY_RANGE = (2, 5)            # 请求间隔时间（秒）
+MAX_RETRIES = 3                 # 最大重试次数
+TIMEOUT = 30                    # 请求超时时间（秒）
+```
+
+#### 高级配置选项
+```python
+# 浏览器配置
+HEADLESS_MODE = True            # 无头模式运行
+WINDOW_SIZE = "1920,1080"       # 浏览器窗口大小
+USER_AGENT = "自定义User-Agent"   # 自定义用户代理
+
+# 数据保存配置
+SAVE_FORMAT = ['excel', 'json'] # 保存格式：excel, json, csv
+OUTPUT_DIR = './data'           # 输出目录
+BACKUP_ENABLED = True           # 是否启用备份
+
+# 过滤配置
+EXCLUDED_COMPANIES = []         # 排除的公司列表
+MIN_SALARY = 0                  # 最低薪资过滤
+MAX_SALARY = 999999            # 最高薪资过滤
+```
+
+### 学校信息采集配置
+
+#### 基础配置
+```python
+# browser_automation.py 中的配置项
+SCHOOL_LIST_FILE = '学校.txt'    # 学校名单文件
+LOG_LEVEL = 'INFO'              # 日志级别：DEBUG, INFO, WARNING, ERROR
+SCREENSHOT_ON_ERROR = True      # 错误时截图
+```
+
+#### 采集行为配置
+```python
+# 页面等待时间配置
+PAGE_LOAD_TIMEOUT = 30          # 页面加载超时（秒）
+ELEMENT_WAIT_TIMEOUT = 10       # 元素等待超时（秒）
+SCROLL_PAUSE_TIME = 2           # 滚动暂停时间（秒）
+
+# 重试配置
+MAX_RETRY_ATTEMPTS = 3          # 最大重试次数
+RETRY_DELAY = 5                 # 重试间隔（秒）
+```
+
+#### 数据提取配置
+```python
+# 专业信息提取规则
+MAJOR_KEYWORDS = ['专业设置', '学科专业', '专业介绍', '院系设置']
+MAJOR_SELECTORS = [
+    'a[href*="专业"]',
+    'a[href*="major"]',
+    'a[href*="subject"]'
+]
+
+# 学生信息提取规则
+STUDENT_COUNT_PATTERNS = [
+    r'在校生.*?(\d+).*?人',
+    r'学生总数.*?(\d+)',
+    r'在校学生.*?(\d+)'
+]
+```
+
+### 自定义配置文件
+
+#### 创建配置文件
+您可以创建 `config.yaml` 文件来自定义配置：
+
+```yaml
+# config.yaml
+scraper:
+  cities: ['北京', '上海', '广州', '深圳']
+  max_pages: 3
+  delay_range: [3, 6]
+  headless: true
+  
+school_collector:
+  school_file: '学校.txt'
+  log_level: 'INFO'
+  max_retries: 3
+  screenshot_on_error: true
+  
+output:
+  format: ['excel', 'json']
+  directory: './output'
+  backup: true
+```
+
+#### 使用配置文件
+```python
+import yaml
+
+# 加载配置文件
+with open('config.yaml', 'r', encoding='utf-8') as f:
+    config = yaml.safe_load(f)
+
+# 应用配置
+CITIES = config['scraper']['cities']
+MAX_PAGES = config['scraper']['max_pages']
+```
+
+### 环境变量配置
+
+支持通过环境变量进行配置：
+
+```bash
+# Windows
+set SCRAPER_HEADLESS=true
+set SCRAPER_MAX_PAGES=5
+set SCRAPER_OUTPUT_DIR=./data
+
+# Linux/macOS
+export SCRAPER_HEADLESS=true
+export SCRAPER_MAX_PAGES=5
+export SCRAPER_OUTPUT_DIR=./data
+```
+
+### 命令行参数
+
+#### 58同城爬虫参数
+```bash
+python enhanced_job_scraper.py --cities 北京,上海 --pages 3 --headless --output ./data
+```
+
+#### 学校信息采集参数
+```bash
+python browser_automation.py --school 四川大学 --log-level DEBUG --screenshot --output ./school_data
+```
 
 ## 数据字段
 
-本工具抓取的职位信息包含以下字段：
+本工具抓取的信息包含以下字段：
 
 ### 企业信息
 - 企业名称
@@ -108,6 +350,16 @@ python browser_automation.py
 - 结束时间
 - 工作职责
 - 任职要求
+
+### 学校信息字段
+- **学校名称**: 高等院校的正式名称
+- **专业信息**: 学校开设的专业列表
+- **学生人数**: 学校在校学生总数（如果可获取）
+- **学校类型**: 院校类型（如综合性大学、理工类等）
+- **办学层次**: 本科、专科等办学层次
+- **地理位置**: 学校所在的城市或地区
+- **建校时间**: 学校的成立时间
+- **学校简介**: 学校的基本介绍和特色
 
 ## 字段匹配规则详解
 
@@ -522,7 +774,584 @@ def setup_logging():
 | 抓取城市 | 文本 | 数据来源城市 |
 ```
 
+## 🚀 性能优化与最佳实践
+
+### 性能优化建议
+
+#### 硬件优化
+```
+推荐配置：
+- CPU: 4核心以上（Intel i5/AMD Ryzen 5 或更高）
+- 内存: 16GB RAM（最低8GB）
+- 存储: SSD硬盘（提高I/O性能）
+- 网络: 稳定的宽带连接（50Mbps+）
+```
+
+#### 软件优化
+```python
+# 1. 浏览器性能优化
+chrome_options.add_argument('--disable-images')          # 禁用图片加载
+chrome_options.add_argument('--disable-javascript')      # 禁用JavaScript（谨慎使用）
+chrome_options.add_argument('--disable-plugins')         # 禁用插件
+chrome_options.add_argument('--disable-extensions')      # 禁用扩展
+chrome_options.add_argument('--no-sandbox')             # 禁用沙盒模式
+chrome_options.add_argument('--disable-dev-shm-usage')  # 禁用/dev/shm使用
+
+# 2. 内存管理优化
+chrome_options.add_argument('--memory-pressure-off')     # 关闭内存压力
+chrome_options.add_argument('--max_old_space_size=4096') # 设置最大内存使用
+```
+
+#### 并发优化
+```python
+# 使用线程池进行并发处理（谨慎使用，避免被封）
+from concurrent.futures import ThreadPoolExecutor
+import threading
+
+# 限制并发数量
+MAX_WORKERS = 2  # 建议不超过3个并发
+
+def process_school_batch(school_list):
+    with ThreadPoolExecutor(max_workers=MAX_WORKERS) as executor:
+        futures = [executor.submit(process_single_school, school) 
+                  for school in school_list]
+        results = [future.result() for future in futures]
+    return results
+```
+
+### 最佳实践
+
+#### 1. 请求频率控制
+```python
+import random
+import time
+
+# 智能延迟策略
+def smart_delay():
+    base_delay = 2  # 基础延迟2秒
+    random_delay = random.uniform(0.5, 2.0)  # 随机延迟0.5-2秒
+    total_delay = base_delay + random_delay
+    time.sleep(total_delay)
+
+# 根据时间段调整延迟
+def adaptive_delay():
+    current_hour = datetime.now().hour
+    if 9 <= current_hour <= 17:  # 工作时间
+        delay = random.uniform(3, 6)
+    else:  # 非工作时间
+        delay = random.uniform(1, 3)
+    time.sleep(delay)
+```
+
+#### 2. 错误处理和重试机制
+```python
+import functools
+import time
+
+def retry_on_failure(max_retries=3, delay=5):
+    def decorator(func):
+        @functools.wraps(func)
+        def wrapper(*args, **kwargs):
+            for attempt in range(max_retries):
+                try:
+                    return func(*args, **kwargs)
+                except Exception as e:
+                    if attempt == max_retries - 1:
+                        raise e
+                    print(f"尝试 {attempt + 1} 失败: {e}")
+                    time.sleep(delay * (attempt + 1))  # 递增延迟
+            return None
+        return wrapper
+    return decorator
+
+@retry_on_failure(max_retries=3, delay=5)
+def extract_school_info(school_name):
+    # 学校信息提取逻辑
+    pass
+```
+
+#### 3. 数据缓存策略
+```python
+import pickle
+import os
+from datetime import datetime, timedelta
+
+class DataCache:
+    def __init__(self, cache_dir='./cache'):
+        self.cache_dir = cache_dir
+        os.makedirs(cache_dir, exist_ok=True)
+    
+    def get_cache_path(self, key):
+        return os.path.join(self.cache_dir, f"{key}.pkl")
+    
+    def is_cache_valid(self, cache_path, hours=24):
+        if not os.path.exists(cache_path):
+            return False
+        cache_time = datetime.fromtimestamp(os.path.getmtime(cache_path))
+        return datetime.now() - cache_time < timedelta(hours=hours)
+    
+    def get(self, key, hours=24):
+        cache_path = self.get_cache_path(key)
+        if self.is_cache_valid(cache_path, hours):
+            with open(cache_path, 'rb') as f:
+                return pickle.load(f)
+        return None
+    
+    def set(self, key, data):
+        cache_path = self.get_cache_path(key)
+        with open(cache_path, 'wb') as f:
+            pickle.dump(data, f)
+```
+
+#### 4. 日志和监控
+```python
+import logging
+import psutil
+import time
+
+# 配置详细日志
+logging.basicConfig(
+    level=logging.INFO,
+    format='%(asctime)s - %(levelname)s - %(message)s',
+    handlers=[
+        logging.FileHandler('scraper.log', encoding='utf-8'),
+        logging.StreamHandler()
+    ]
+)
+
+# 性能监控
+def monitor_performance():
+    cpu_percent = psutil.cpu_percent()
+    memory_percent = psutil.virtual_memory().percent
+    disk_usage = psutil.disk_usage('/').percent
+    
+    logging.info(f"系统性能 - CPU: {cpu_percent}%, 内存: {memory_percent}%, 磁盘: {disk_usage}%")
+    
+    if memory_percent > 80:
+        logging.warning("内存使用率过高，建议优化")
+    if cpu_percent > 90:
+        logging.warning("CPU使用率过高，建议降低并发")
+```
+
+#### 5. 数据验证和清洗
+```python
+import re
+from typing import Optional
+
+def validate_and_clean_data(data: dict) -> dict:
+    """数据验证和清洗"""
+    cleaned_data = {}
+    
+    # 学校名称验证
+    if 'school_name' in data:
+        school_name = data['school_name'].strip()
+        if len(school_name) > 0 and len(school_name) < 100:
+            cleaned_data['school_name'] = school_name
+    
+    # 学生人数验证和清洗
+    if 'student_count' in data:
+        student_count = data['student_count']
+        # 移除引用标记
+        student_count = re.sub(r'\[\d+\]', '', student_count)
+        # 提取数字
+        numbers = re.findall(r'\d+', student_count)
+        if numbers:
+            cleaned_data['student_count'] = int(numbers[0])
+    
+    # 专业信息清洗
+    if 'majors' in data and isinstance(data['majors'], list):
+        cleaned_majors = []
+        for major in data['majors']:
+            major = major.strip()
+            if len(major) > 0 and len(major) < 200:
+                cleaned_majors.append(major)
+        cleaned_data['majors'] = cleaned_majors
+    
+    return cleaned_data
+```
+
+#### 6. 资源管理
+```python
+import atexit
+import signal
+import sys
+
+class ResourceManager:
+    def __init__(self):
+        self.drivers = []
+        self.temp_files = []
+        
+        # 注册清理函数
+        atexit.register(self.cleanup)
+        signal.signal(signal.SIGINT, self.signal_handler)
+        signal.signal(signal.SIGTERM, self.signal_handler)
+    
+    def add_driver(self, driver):
+        self.drivers.append(driver)
+    
+    def add_temp_file(self, filepath):
+        self.temp_files.append(filepath)
+    
+    def cleanup(self):
+        # 关闭所有浏览器驱动
+        for driver in self.drivers:
+            try:
+                driver.quit()
+            except:
+                pass
+        
+        # 清理临时文件
+        for filepath in self.temp_files:
+            try:
+                os.remove(filepath)
+            except:
+                pass
+    
+    def signal_handler(self, signum, frame):
+        print("接收到退出信号，正在清理资源...")
+        self.cleanup()
+        sys.exit(0)
+```
+
+### 生产环境部署建议
+
+#### Docker部署
+```dockerfile
+FROM python:3.9-slim
+
+# 安装系统依赖
+RUN apt-get update && apt-get install -y \
+    wget \
+    gnupg \
+    unzip \
+    curl \
+    && rm -rf /var/lib/apt/lists/*
+
+# 安装Chrome
+RUN wget -q -O - https://dl-ssl.google.com/linux/linux_signing_key.pub | apt-key add - \
+    && echo "deb [arch=amd64] http://dl.google.com/linux/chrome/deb/ stable main" >> /etc/apt/sources.list.d/google.list \
+    && apt-get update \
+    && apt-get install -y google-chrome-stable \
+    && rm -rf /var/lib/apt/lists/*
+
+# 设置工作目录
+WORKDIR /app
+
+# 复制项目文件
+COPY requirements.txt .
+RUN pip install -r requirements.txt
+
+COPY . .
+
+# 运行脚本
+CMD ["python", "enhanced_job_scraper.py"]
+```
+
+#### 定时任务配置
+```bash
+# 使用crontab设置定时任务
+# 每天凌晨2点运行爬虫
+0 2 * * * cd /path/to/58job-scraper && python enhanced_job_scraper.py
+
+# 每周一上午9点运行学校信息采集
+0 9 * * 1 cd /path/to/58job-scraper/school && python browser_automation.py
+```
+
+## ❓ 常见问题解答 (FAQ)
+
+### 安装和配置问题
+
+**Q: 安装依赖时出现 "Microsoft Visual C++ 14.0 is required" 错误？**
+A: 这是Windows系统常见问题，请安装Microsoft Visual C++ Build Tools：
+- 下载并安装 [Microsoft C++ Build Tools](https://visualstudio.microsoft.com/visual-cpp-build-tools/)
+- 或者安装 [Visual Studio Community](https://visualstudio.microsoft.com/vs/community/)
+
+**Q: ChromeDriver版本不匹配怎么办？**
+A: 
+1. 查看Chrome浏览器版本：`chrome://version/`
+2. 下载对应版本的ChromeDriver：[ChromeDriver下载页面](https://chromedriver.chromium.org/)
+3. 或者使用webdriver-manager自动管理：`pip install webdriver-manager`
+
+**Q: 在Linux服务器上运行时出现显示相关错误？**
+A: 服务器环境通常没有图形界面，需要配置无头模式：
+```python
+chrome_options.add_argument('--headless')
+chrome_options.add_argument('--no-sandbox')
+chrome_options.add_argument('--disable-dev-shm-usage')
+```
+
+### 使用问题
+
+**Q: 爬取过程中频繁出现验证码怎么办？**
+A: 
+1. 降低爬取频率，增加延迟时间
+2. 使用代理IP轮换
+3. 模拟真实用户行为（随机滚动、点击等）
+4. 避免在短时间内大量请求
+
+**Q: 学校信息采集失败，显示"未找到专业设置链接"？**
+A: 
+1. 检查学校名称是否正确
+2. 学校官网可能已更新，需要调整链接匹配规则
+3. 网络连接问题，尝试重新运行
+4. 查看详细日志文件排查具体原因
+
+**Q: 数据保存格式可以自定义吗？**
+A: 是的，项目支持多种输出格式：
+- Excel (.xlsx)
+- JSON (.json)
+- CSV (.csv)
+- 可以修改代码中的保存逻辑来支持其他格式
+
+### 性能问题
+
+**Q: 爬取速度很慢怎么优化？**
+A: 
+1. 调整并发数量（注意不要过高避免被封）
+2. 使用SSD硬盘提高I/O性能
+3. 增加内存避免频繁交换
+4. 优化网络连接，使用稳定的网络环境
+
+**Q: 内存占用过高怎么办？**
+A: 
+1. 减少批处理大小
+2. 及时清理不需要的数据
+3. 使用生成器而不是列表存储大量数据
+4. 定期重启浏览器实例
+
+### 数据问题
+
+**Q: 抓取的数据不完整或有错误？**
+A: 
+1. 检查网站结构是否发生变化
+2. 更新CSS选择器和XPath表达式
+3. 增加数据验证和清洗逻辑
+4. 查看日志文件了解具体错误信息
+
+**Q: 如何处理重复数据？**
+A: 项目内置了去重机制，基于以下字段：
+- 职位信息：职位名称 + 公司名称 + 发布时间
+- 学校信息：学校名称 + 专业名称
+
+### 法律和道德问题
+
+**Q: 使用爬虫是否合法？**
+A: 
+1. 仅用于学习和研究目的
+2. 遵守网站的robots.txt协议
+3. 不要过度频繁请求，避免影响网站正常运行
+4. 不要用于商业用途或恶意目的
+5. 尊重网站的使用条款和隐私政策
+
+**Q: 如何避免被网站封禁？**
+A: 
+1. 设置合理的请求间隔（建议2-5秒）
+2. 使用随机User-Agent
+3. 避免在高峰时段进行大量爬取
+4. 遵守网站的访问频率限制
+
+## 🤝 贡献指南
+
+我们欢迎所有形式的贡献！无论是报告bug、提出新功能建议，还是提交代码改进，都对项目的发展非常有价值。
+
+### 如何贡献
+
+#### 1. 报告问题
+如果您发现了bug或有改进建议，请：
+- 在GitHub上创建Issue
+- 详细描述问题或建议
+- 提供复现步骤（如果是bug）
+- 包含系统环境信息
+
+#### 2. 提交代码
+```bash
+# 1. Fork项目到您的GitHub账户
+# 2. 克隆您的fork
+git clone https://github.com/your-username/58job-scraper.git
+cd 58job-scraper
+
+# 3. 创建新分支
+git checkout -b feature/your-feature-name
+
+# 4. 进行修改并提交
+git add .
+git commit -m "Add: 您的功能描述"
+
+# 5. 推送到您的fork
+git push origin feature/your-feature-name
+
+# 6. 创建Pull Request
+```
+
+#### 3. 代码规范
+- 遵循PEP 8 Python代码规范
+- 添加适当的注释和文档字符串
+- 确保代码通过现有测试
+- 为新功能添加测试用例
+
+#### 4. 提交信息规范
+```
+类型: 简短描述
+
+详细描述（可选）
+
+类型包括：
+- Add: 新增功能
+- Fix: 修复bug
+- Update: 更新现有功能
+- Refactor: 重构代码
+- Docs: 文档更新
+- Test: 测试相关
+```
+
+### 开发环境设置
+
+#### 1. 安装开发依赖
+```bash
+pip install -r requirements.txt
+pip install -r requirements-dev.txt  # 开发依赖（如果存在）
+```
+
+#### 2. 运行测试
+```bash
+# 运行所有测试
+python -m pytest
+
+# 运行特定测试
+python -m pytest tests/test_scraper.py
+
+# 生成覆盖率报告
+python -m pytest --cov=./ --cov-report=html
+```
+
+#### 3. 代码质量检查
+```bash
+# 代码格式检查
+flake8 .
+
+# 代码格式化
+black .
+
+# 类型检查
+mypy .
+```
+
+### 项目维护者
+
+- **主要维护者**: [您的姓名](mailto:your-email@example.com)
+- **贡献者**: 查看 [Contributors](https://github.com/your-username/58job-scraper/graphs/contributors)
+
+### 行为准则
+
+参与本项目时，请遵守以下准则：
+- 尊重所有参与者
+- 使用友善和包容的语言
+- 接受建设性的批评
+- 专注于对社区最有利的事情
+- 对其他社区成员表现出同理心
+
+## 📄 许可证
+
+本项目采用 MIT 许可证 - 查看 [LICENSE](LICENSE) 文件了解详情。
+
+### MIT 许可证摘要
+
+```
+MIT License
+
+Copyright (c) 2024 58job-scraper
+
+Permission is hereby granted, free of charge, to any person obtaining a copy
+of this software and associated documentation files (the "Software"), to deal
+in the Software without restriction, including without limitation the rights
+to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+copies of the Software, and to permit persons to whom the Software is
+furnished to do so, subject to the following conditions:
+
+The above copyright notice and this permission notice shall be included in all
+copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+SOFTWARE.
+```
+
+### 免责声明
+
+- 本工具仅供学习和研究使用
+- 使用者需自行承担使用风险
+- 请遵守相关网站的使用条款和robots.txt协议
+- 不得用于商业用途或恶意目的
+- 作者不对因使用本工具造成的任何损失负责
+
+## 🙏 致谢
+
+感谢以下开源项目和贡献者：
+
+- [Selenium](https://selenium-python.readthedocs.io/) - 浏览器自动化框架
+- [BeautifulSoup](https://www.crummy.com/software/BeautifulSoup/) - HTML解析库
+- [Pandas](https://pandas.pydata.org/) - 数据处理库
+- [Requests](https://requests.readthedocs.io/) - HTTP库
+- 所有为本项目贡献代码和建议的开发者
+
+## 📞 联系方式
+
+- **项目主页**: [GitHub Repository](https://github.com/your-username/58job-scraper)
+- **问题反馈**: [GitHub Issues](https://github.com/your-username/58job-scraper/issues)
+- **邮箱**: your-email@example.com
+- **QQ群**: 123456789（技术交流群）
+
+## 📈 项目统计
+
+![GitHub stars](https://img.shields.io/github/stars/your-username/58job-scraper?style=social)
+![GitHub forks](https://img.shields.io/github/forks/your-username/58job-scraper?style=social)
+![GitHub issues](https://img.shields.io/github/issues/your-username/58job-scraper)
+![GitHub license](https://img.shields.io/github/license/your-username/58job-scraper)
+![Python version](https://img.shields.io/badge/python-3.7%2B-blue)
+
+---
+
+**⭐ 如果这个项目对您有帮助，请给我们一个Star！**
+
 ## 🔧 技术架构
+
+### 核心技术栈
+- **Python 3.x**: 主要开发语言
+- **Selenium WebDriver**: 浏览器自动化框架
+- **BeautifulSoup4**: HTML解析库
+- **Requests**: HTTP请求库
+- **Pandas**: 数据处理和分析
+- **ChromeDriver**: Chrome浏览器驱动
+- **正则表达式**: 数据清洗和提取
+
+### 架构设计
+```
+58job-scraper/
+├── main.py              # 主程序入口
+├── scraper.py           # 核心爬虫逻辑
+├── utils.py             # 工具函数
+├── config.py            # 配置文件
+├── requirements.txt     # 依赖包列表
+├── school/             # 学校信息采集模块
+│   ├── browser_automation.py  # 学校信息自动化采集
+│   ├── 学校.txt               # 学校名单
+│   └── logs/                  # 采集日志
+├── data/               # 数据存储目录
+│   ├── raw/            # 原始数据
+│   └── processed/      # 处理后数据
+└── logs/               # 日志文件
+```
+
+### 学校信息采集技术特点
+- **智能页面导航**: 自动识别和点击专业设置相关链接
+- **多源数据整合**: 结合学校官网和头条百科信息
+- **容错机制**: 支持多种查找策略和异常处理
+- **数据清洗**: 自动去除引用标记和格式化文本
+- **日志记录**: 详细记录每个步骤的执行情况
 
 ### 核心类：Enhanced58JobScraper
 

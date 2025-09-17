@@ -623,11 +623,11 @@ class BrowserAutomation:
                 return cleaned_student_count
             else:
                 print("❌ 未找到学生人数信息")
-                return None
+                return ""
                 
         except Exception as e:
             print(f"❌ 提取学生人数失败: {str(e)}")
-            return None
+            return ""
     
     def close_browser(self):
         """关闭浏览器"""
@@ -677,7 +677,7 @@ class BrowserAutomation:
             # 6. 重新访问头条搜索页面并点击百科链接
             if major_info:  # 只有在成功提取专业信息后才继续
                 student_count = self.visit_toutiao_and_click_baike()
-                if student_count is None:
+                if not student_count:
                     print("⚠️ 访问头条搜索页面或点击百科链接失败")
             
             # 8. 整合并展示完整信息
