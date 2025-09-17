@@ -727,14 +727,19 @@ class BrowserAutomation:
 
 def main():
     """主函数"""
+    # 初始化日志配置
+    log_file = setup_logging()
+    log_print(f"📝 日志文件已创建: {log_file}")
+    log_print("🚀 开始执行浏览器自动化脚本")
+    
     automation = BrowserAutomation()
     success = automation.run()
     
     if success:
-        print("\n✅ 脚本执行完成")
+        log_print("\n✅ 脚本执行完成")
         sys.exit(0)
     else:
-        print("\n❌ 脚本执行失败")
+        log_print("\n❌ 脚本执行失败")
         sys.exit(1)
 
 
