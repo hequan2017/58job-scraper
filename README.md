@@ -4,22 +4,70 @@
 
 **🎯 项目亮点**：已成功验证，单次运行38.53分钟抓取1105个有效职位，平均2.09秒/职位，数据完整性100%。支持142所四川省高校信息采集，智能处理学校专业设置和百科信息。
 
+## 📞 联系方式
+
+- **项目主页**: [GitHub Repository](https://github.com/your-username/58job-scraper)
+- **问题反馈**: [GitHub Issues](https://github.com/your-username/58job-scraper/issues)
+- **QQ群**: 620176501（技术交流群）
+
 ## 📁 项目结构
 
 ```
 58job-scraper/
-├── 58/                                    # 主要功能目录
-│   ├── enhanced_job_scraper.py           # 核心爬虫脚本
-│   ├── 58同城多城市职位详细信息.json      # JSON格式数据文件
-│   └── log/                              # 日志文件目录（运行时自动创建）
-├── other/                                # 辅助工具目录
-│   └── chromedriver-win32/               # ChromeDriver相关文件
-│       ├── LICENSE.chromedriver
-│       └── THIRD_PARTY_NOTICES.chromedriver
-├── school/                               # 预留目录（可用于学校相关数据）
-├── requirements.txt                      # Python依赖包列表
-├── .gitignore                           # Git忽略文件配置
-└── README.md                            # 项目说明文档
+├── 📂 58/                                # 58同城招聘信息爬虫模块
+│   ├── 🐍 enhanced_job_scraper.py       # 核心爬虫脚本（主程序）
+│   ├── 📄 58同城多城市职位详细信息.json  # JSON格式数据输出文件
+│   ├── 📊 58同城多城市职位详细信息.xlsx  # Excel格式数据输出文件
+│   └── 📁 log/                          # 爬虫日志目录（运行时自动创建）
+│       ├── scraper_YYYYMMDD_HHMMSS.log  # 详细执行日志
+│       └── error_YYYYMMDD_HHMMSS.log    # 错误日志记录
+├── 📂 school/                           # 学校信息自动化采集模块
+│   ├── 🤖 browser_automation.py         # 学校信息采集核心脚本
+│   ├── 📋 学校.txt                      # 支持的142所高校名单
+│   ├── 📖 使用示例.md                   # 学校模块使用说明文档
+│   └── 📁 logs/                         # 学校采集日志目录
+│       ├── browser_automation_20250917_143357.log  # 执行日志示例
+│       ├── browser_automation_20250917_150131.log  # 执行日志示例
+│       └── ...                          # 其他历史日志文件
+├── 📂 other/                            # 辅助工具和资源目录
+│   └── 📁 chromedriver-win32/           # ChromeDriver浏览器驱动
+│       ├── 📜 LICENSE.chromedriver      # ChromeDriver许可证
+│       └── 📜 THIRD_PARTY_NOTICES.chromedriver  # 第三方声明
+├── 📋 requirements.txt                  # Python项目依赖包清单
+├── 🚫 .gitignore                        # Git版本控制忽略文件配置
+└── 📚 README.md                         # 项目完整说明文档（本文件）
+```
+
+### 📂 目录功能说明
+
+#### 🎯 58/ - 招聘信息爬虫模块
+- **核心功能**: 58同城招聘信息批量采集
+- **支持城市**: 北京、上海、广州、深圳、成都、西安、郑州
+- **输出格式**: Excel (.xlsx) + JSON (.json) 双格式
+- **数据处理**: 智能去重、数据清洗、实时保存
+- **日志系统**: 详细的执行日志和错误追踪
+
+#### 🏫 school/ - 学校信息采集模块  
+- **核心功能**: 高校官网信息自动化采集
+- **支持学校**: 142所四川省高等院校
+- **采集内容**: 专业设置、学校介绍、统计信息
+- **技术特点**: Selenium自动化、智能页面导航、错误恢复
+- **配置灵活**: 支持命令行参数指定学校
+
+#### 🛠️ other/ - 工具资源目录
+- **ChromeDriver**: 浏览器自动化驱动程序
+- **许可证文件**: 相关法律文档和声明
+- **扩展工具**: 未来可添加其他辅助工具
+
+#### 📊 数据文件结构
+```
+输出数据文件/
+├── 58同城多城市职位详细信息.xlsx     # Excel格式，便于数据分析
+├── 58同城多城市职位详细信息.json     # JSON格式，便于程序处理
+└── logs/                            # 日志文件，便于问题排查
+    ├── 执行日志 (INFO级别)
+    ├── 错误日志 (ERROR级别)  
+    └── 调试日志 (DEBUG级别)
 ```
 
 ## 🚀 功能特性
@@ -1298,12 +1346,7 @@ SOFTWARE.
 - [Requests](https://requests.readthedocs.io/) - HTTP库
 - 所有为本项目贡献代码和建议的开发者
 
-## 📞 联系方式
 
-- **项目主页**: [GitHub Repository](https://github.com/your-username/58job-scraper)
-- **问题反馈**: [GitHub Issues](https://github.com/your-username/58job-scraper/issues)
-- **邮箱**: your-email@example.com
-- **QQ群**: 123456789（技术交流群）
 
 ## 📈 项目统计
 
